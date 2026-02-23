@@ -5226,7 +5226,7 @@ async function generateMediaSwipe(mediaAttachment, message, onStart, onComplete,
         const savedNegative = mediaAttachment.negative ?? message.extra.negative ?? '';
         const refineArgs = {
             negative: savedNegative,
-            resolution: mediaAttachment?.width && mediaAttachment?.height ? `${mediaAttachment.width}x${mediaAttachment.height}` : null,
+            resolution: mediaAttachment.width && mediaAttachment.height ? `${mediaAttachment.width}x${mediaAttachment.height}` : null,
         };
         const prompt = await refinePrompt(savedPrompt, refineArgs);
         dimensions = setTypeSpecificDimensions(generationType, refineArgs.resolution ? mediaAttachment : null);
@@ -5241,6 +5241,10 @@ async function generateMediaSwipe(mediaAttachment, message, onStart, onComplete,
         result.generation_type = generationType;
         result.title = prompt;
         result.negative = refineArgs.negative;
+        if (refineArgs.resolution) {
+            result.width = mediaAttachment.width;
+            result.height = mediaAttachment.height;
+        }
     } finally {
         onComplete();
         $(stopButton).hide();
