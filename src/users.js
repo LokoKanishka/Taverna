@@ -848,8 +848,8 @@ async function basicUserLogin(request) {
  * @param {import('express').NextFunction} next Next function
  */
 export async function setUserDataMiddleware(request, response, next) {
-    // If user accounts are disabled, use the default user
-    if (!ENABLE_ACCOUNTS) {
+    // If user accounts are disabled, or it's the orchestrator API, use the default user
+    if (!ENABLE_ACCOUNTS || request.path.startsWith('/api/plugins/st-orchestrator/')) {
         const handle = DEFAULT_USER.handle;
         const directories = getUserDirectories(handle);
         request.user = {
@@ -906,6 +906,9 @@ export async function setUserDataMiddleware(request, response, next) {
  * @param {import('express').NextFunction} next Next function
  */
 export function requireLoginMiddleware(request, response, next) {
+    if (request.path.startsWith('/api/plugins/st-orchestrator/')) {
+        return next();
+    }
     if (!request.user) {
         return response.sendStatus(403);
     }

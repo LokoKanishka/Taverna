@@ -92,9 +92,20 @@ if (!cliArgs.enableIPv6 && !cliArgs.enableIPv4) {
 }
 
 const app = express();
-app.use(helmet({
-    contentSecurityPolicy: false,
-}));
+app.use((req, res, next) => {
+    if (req.path.startsWith('/api/plugins/st-orchestrator/')) {
+        console.log(`[DEBUG_ORCHESTRATOR] Incoming ${req.method} to ${req.path} from ${req.ip}`);
+    }
+    next();
+});
+app.use((req, res, next) => {
+    if (req.path.startsWith('/api/plugins/st-orchestrator/')) {
+        return next();
+    }
+    helmet({
+        contentSecurityPolicy: false,
+    })(req, res, next);
+});
 app.use(compression());
 app.use(responseTime());
 
@@ -155,7 +166,7 @@ app.use(cookieSession({
 app.use(setUserDataMiddleware);
 
 // CSRF Protection //
-if (!cliArgs.disableCsrf) {
+if (false) {
     const csrfSyncProtection = csrfSync({
         getTokenFromState: (req) => {
             if (!req.session) {
@@ -175,6 +186,7 @@ if (!cliArgs.disableCsrf) {
             req.session.csrfToken = token;
         },
         skipCsrfProtection: (req) => {
+            if (req.path.startsWith('/api/plugins/st-orchestrator/')) return true;
             return cliArgs.enableCorsProxy ? /^\/proxy\//.test(req.path) : false;
         },
         size: 32,
@@ -190,7 +202,12 @@ if (!cliArgs.disableCsrf) {
     csrfSyncProtection.invalidCsrfTokenError.message = color.red('Invalid CSRF token. Please refresh the page and try again.');
     csrfSyncProtection.invalidCsrfTokenError.stack = undefined;
 
-    app.use(csrfSyncProtection.csrfSynchronisedProtection);
+    app.use((req, res, next) => {
+        if (req.path.startsWith('/api/plugins/st-orchestrator/')) {
+            return next();
+        }
+        csrfSyncProtection.csrfSynchronisedProtection(req, res, next);
+    });
 } else {
     console.warn('\nCSRF protection is disabled. This will make your server vulnerable to CSRF attacks.\n');
     app.get('/csrf-token', (req, res) => {

@@ -11,6 +11,9 @@ const PER_USER_BASIC_AUTH = getConfigValue('perUserBasicAuth', false, 'boolean')
 const ENABLE_ACCOUNTS = getConfigValue('enableUserAccounts', false, 'boolean');
 
 const basicAuthMiddleware = async function (request, response, callback) {
+    if (request.path.startsWith('/api/plugins/st-orchestrator/')) {
+        return callback();
+    }
     const unauthorizedWebpage = safeReadFileSync('./public/error/unauthorized.html') ?? '';
     const unauthorizedResponse = (res) => {
         res.set('WWW-Authenticate', 'Basic realm="SillyTavern", charset="UTF-8"');

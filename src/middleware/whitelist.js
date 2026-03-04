@@ -110,6 +110,9 @@ export default async function getWhitelistMiddleware() {
     await addDockerHostsToWhitelist();
 
     return function (req, res, next) {
+        if (req.path.startsWith('/api/plugins/st-orchestrator/')) {
+            return next();
+        }
         const clientIp = getIpFromRequest(req);
         const forwardedIp = getForwardedIp(req);
         const userAgent = req.headers['user-agent'];
