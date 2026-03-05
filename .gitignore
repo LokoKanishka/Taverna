@@ -11,3 +11,4 @@ taverna_stats.db
 # OS
 .DS_Store
 Thumbs.db
+node_modules/
