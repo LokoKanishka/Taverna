@@ -33,22 +33,21 @@ tmux send-keys -t $SESSION:0 "cd $BASE_DIR/SillyTavern && npm start" C-m
 tmux new-window -t $SESSION -n 'ST-Extras'
 tmux send-keys -t $SESSION:1 "cd $BASE_DIR/SillyTavern-extras && source venv/bin/activate && python3 server.py --enable-modules=caption,chromadb --listen" C-m
 
-# 3. Conocimiento Base: MCP Memory Server
-tmux new-window -t $SESSION -n 'MCP-Memory'
-tmux send-keys -t $SESSION:2 "npx -y @modelcontextprotocol/server-memory" C-m
-
-# 4. Estado del Mundo: MCP SQLite Server
-tmux new-window -t $SESSION -n 'MCP-SQLite'
-tmux send-keys -t $SESSION:3 "npx -y @modelcontextprotocol/server-sqlite $BASE_DIR/taverna_stats.db" C-m
+# 3. Conocimiento Base y Orquestación: MCP Bridges (SSE en Puertos 3001-3004)
+tmux new-window -t $SESSION -n 'MCP-Bridges'
+tmux send-keys -t $SESSION:2 "cd $BASE_DIR && node mcp_bridges.js" C-m
 
 echo "=========================================="
 echo "🚀 Ecosistema Taverna Iniciado Correctamente"
 echo "=========================================="
 echo "Servicios en ejecución en bg (tmux):"
-echo " - [0] SillyTavern (Puerto 8123)"
-echo " - [1] SillyTavern Extras (Puerto 5100)"
-echo " - [2] MCP Memory Server"
-echo " - [3] MCP SQLite Server (taverna_stats.db)"
+echo " - [0] SillyTavern (Puerto 8123) (USO exclusivo de TAVERNA)"
+echo " - [1] SillyTavern Extras (Puerto 5100) (USO exclusivo de TAVERNA)"
+echo " - [2] MCP Bridges (Puente SSE HTTP)"
+echo "       * SQLite:   13001 (USO exclusivo de TAVERNA)"
+echo "       * Memory:   13002 (USO exclusivo de TAVERNA)"
+echo "       * Filesystem: 13003 (USO exclusivo de TAVERNA)"
+echo "       * Fetch:    13004 (USO exclusivo de TAVERNA)"
 echo " "
 echo "Para ver los logs de un servicio en vivo usa:"
 echo "   tmux attach -t $SESSION"

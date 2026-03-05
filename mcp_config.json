@@ -1,0 +1,44 @@
+{
+    "mcpServers": {
+        "taverna-sqlite": {
+            "command": "node",
+            "args": [
+                "/home/lucy-ubuntu/Escritorio/Taverna/mcp_bridges.js"
+            ],
+            "env": {
+                "PORT": "13001",
+                "MCP_ID": "sqlite"
+            }
+        },
+        "taverna-memory": {
+            "command": "node",
+            "args": [
+                "/home/lucy-ubuntu/Escritorio/Taverna/mcp_bridges.js"
+            ],
+            "env": {
+                "PORT": "13002",
+                "MCP_ID": "memory"
+            }
+        },
+        "taverna-filesystem": {
+            "command": "node",
+            "args": [
+                "/home/lucy-ubuntu/Escritorio/Taverna/mcp_bridges.js"
+            ],
+            "env": {
+                "PORT": "13003",
+                "MCP_ID": "filesystem"
+            }
+        },
+        "taverna-fetch": {
+            "command": "node",
+            "args": [
+                "/home/lucy-ubuntu/Escritorio/Taverna/mcp_bridges.js"
+            ],
+            "env": {
+                "PORT": "13004",
+                "MCP_ID": "fetch"
+            }
+        }
+    }
+}
