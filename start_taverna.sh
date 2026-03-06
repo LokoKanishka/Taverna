@@ -36,10 +36,13 @@ SESSION="taverna_eco"
 # Matar sesión existente si la hay
 tmux kill-session -t $SESSION 2>/dev/null
 
-# Matar procesos huérfanos para liberar puertos
 pkill -f "SillyTavern/server.js" || true
 pkill -f "SillyTavern-extras/server.py" || true
 pkill -f "mcp_bridges.js" || true
+# Forzar liberación de puertos core
+fuser -k 8123/tcp 2>/dev/null
+fuser -k 5100/tcp 2>/dev/null
+fuser -k 13001/tcp 13002/tcp 13003/tcp 13004/tcp 2>/dev/null
 sleep 2
 
 # Crear nueva sesión tmux en background
@@ -54,8 +57,10 @@ tmux new-window -t $SESSION -n 'ST-Extras'
 tmux send-keys -t $SESSION:1 "cd $BASE_DIR/SillyTavern-extras && source venv/bin/activate && python3 server.py --enable-modules=caption,chromadb --listen" C-m
 
 # ── [2] MCP Bridge: Lanza TODOS los bridges ──────────────────
+# Logs duplicated to /tmp/taverna_bridges.log for post-mortem analysis
+LOG_FILE="/tmp/taverna_bridges.log"
 tmux new-window -t $SESSION -n 'MCP-Bridges'
-tmux send-keys -t $SESSION:2 "cd $BASE_DIR && node mcp_bridges.js" C-m
+tmux send-keys -t $SESSION:2 "cd $BASE_DIR && node mcp_bridges.js 2>&1 | tee -a $LOG_FILE" C-m
 
 echo ""
 echo "🏴‍☠️ ════════════════════════════════════════════════════════"
@@ -104,3 +109,10 @@ echo "  🔍 Health check de un bridge:"
 echo "     curl http://localhost:13001/health"
 echo ""
 echo "════════════════════════════════════════════════════════════"
+
+# ── Post-launch verification ─────────────────────────────────
+echo ""
+echo "  ⏳ Waiting 15 seconds for services to initialize..."
+sleep 15
+echo ""
+$BASE_DIR/smoke_test.sh

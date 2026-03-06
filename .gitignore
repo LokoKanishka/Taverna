@@ -8,6 +8,9 @@ taverna_stats.db
 # Logs
 *.log
 
+# Credentials (use .env.example as template)
+.env
+
 # OS
 .DS_Store
 Thumbs.db

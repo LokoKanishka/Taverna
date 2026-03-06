@@ -15,7 +15,7 @@ const mcpServers = [
         name: 'SQLite',
         port: 13001,
         command: 'npx',
-        args: ['-y', '@modelcontextprotocol/server-sqlite', `${TAVERNA_ROOT}/taverna_stats.db`]
+        args: ['-y', 'mcp-server-sqlite', `${TAVERNA_ROOT}/taverna_stats.db`]
     },
     {
         id: 'memory',
@@ -36,7 +36,7 @@ const mcpServers = [
         name: 'Fetch',
         port: 13004,
         command: 'npx',
-        args: ['-y', '@modelcontextprotocol/server-fetch']
+        args: ['-y', 'fetch-mcp']
     },
 
     // ── Tier 1: IMPACTO DIRECTO ─────────────────────────────
@@ -45,14 +45,14 @@ const mcpServers = [
         name: 'Git',
         port: 13005,
         command: 'npx',
-        args: ['-y', '@modelcontextprotocol/server-git', '--repository', TAVERNA_ROOT]
+        args: ['-y', '@cyanheads/git-mcp-server', '--repository', TAVERNA_ROOT]
     },
     {
         id: 'time',
         name: 'Time',
         port: 13006,
         command: 'npx',
-        args: ['-y', '@modelcontextprotocol/server-time']
+        args: ['-y', 'time-mcp']
     },
     {
         id: 'puppeteer',
