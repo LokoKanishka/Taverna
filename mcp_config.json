@@ -39,6 +39,166 @@
                 "PORT": "13004",
                 "MCP_ID": "fetch"
             }
+        },
+        "taverna-git": {
+            "command": "node",
+            "args": [
+                "/home/lucy-ubuntu/Escritorio/Taverna/mcp_bridges.js"
+            ],
+            "env": {
+                "PORT": "13005",
+                "MCP_ID": "git"
+            }
+        },
+        "taverna-time": {
+            "command": "node",
+            "args": [
+                "/home/lucy-ubuntu/Escritorio/Taverna/mcp_bridges.js"
+            ],
+            "env": {
+                "PORT": "13006",
+                "MCP_ID": "time"
+            }
+        },
+        "taverna-puppeteer": {
+            "command": "node",
+            "args": [
+                "/home/lucy-ubuntu/Escritorio/Taverna/mcp_bridges.js"
+            ],
+            "env": {
+                "PORT": "13007",
+                "MCP_ID": "puppeteer"
+            }
+        },
+        "taverna-sequential-thinking": {
+            "command": "node",
+            "args": [
+                "/home/lucy-ubuntu/Escritorio/Taverna/mcp_bridges.js"
+            ],
+            "env": {
+                "PORT": "13008",
+                "MCP_ID": "sequential-thinking"
+            }
+        },
+        "taverna-postgres": {
+            "command": "node",
+            "args": [
+                "/home/lucy-ubuntu/Escritorio/Taverna/mcp_bridges.js"
+            ],
+            "env": {
+                "PORT": "13009",
+                "MCP_ID": "postgres"
+            }
+        },
+        "taverna-brave-search": {
+            "command": "node",
+            "args": [
+                "/home/lucy-ubuntu/Escritorio/Taverna/mcp_bridges.js"
+            ],
+            "env": {
+                "PORT": "13010",
+                "MCP_ID": "brave-search"
+            }
+        },
+        "taverna-google-maps": {
+            "command": "node",
+            "args": [
+                "/home/lucy-ubuntu/Escritorio/Taverna/mcp_bridges.js"
+            ],
+            "env": {
+                "PORT": "13011",
+                "MCP_ID": "google-maps"
+            }
+        },
+        "taverna-github": {
+            "command": "node",
+            "args": [
+                "/home/lucy-ubuntu/Escritorio/Taverna/mcp_bridges.js"
+            ],
+            "env": {
+                "PORT": "13012",
+                "MCP_ID": "github"
+            }
+        },
+        "taverna-everart": {
+            "command": "node",
+            "args": [
+                "/home/lucy-ubuntu/Escritorio/Taverna/mcp_bridges.js"
+            ],
+            "env": {
+                "PORT": "13013",
+                "MCP_ID": "everart"
+            }
+        },
+        "taverna-sentry": {
+            "command": "node",
+            "args": [
+                "/home/lucy-ubuntu/Escritorio/Taverna/mcp_bridges.js"
+            ],
+            "env": {
+                "PORT": "13014",
+                "MCP_ID": "sentry"
+            }
+        },
+        "taverna-slack": {
+            "command": "node",
+            "args": [
+                "/home/lucy-ubuntu/Escritorio/Taverna/mcp_bridges.js"
+            ],
+            "env": {
+                "PORT": "13015",
+                "MCP_ID": "slack"
+            }
+        },
+        "taverna-gdrive": {
+            "command": "node",
+            "args": [
+                "/home/lucy-ubuntu/Escritorio/Taverna/mcp_bridges.js"
+            ],
+            "env": {
+                "PORT": "13016",
+                "MCP_ID": "gdrive"
+            }
+        },
+        "taverna-n8n": {
+            "command": "node",
+            "args": [
+                "/home/lucy-ubuntu/Escritorio/Taverna/mcp_bridges.js"
+            ],
+            "env": {
+                "PORT": "13017",
+                "MCP_ID": "n8n"
+            }
+        },
+        "taverna-docker": {
+            "command": "node",
+            "args": [
+                "/home/lucy-ubuntu/Escritorio/Taverna/mcp_bridges.js"
+            ],
+            "env": {
+                "PORT": "13018",
+                "MCP_ID": "docker"
+            }
+        },
+        "taverna-redis": {
+            "command": "node",
+            "args": [
+                "/home/lucy-ubuntu/Escritorio/Taverna/mcp_bridges.js"
+            ],
+            "env": {
+                "PORT": "13019",
+                "MCP_ID": "redis"
+            }
+        },
+        "taverna-supabase": {
+            "command": "node",
+            "args": [
+                "/home/lucy-ubuntu/Escritorio/Taverna/mcp_bridges.js"
+            ],
+            "env": {
+                "PORT": "13020",
+                "MCP_ID": "supabase"
+            }
         }
     }
 }
