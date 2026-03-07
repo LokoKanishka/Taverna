@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # ============================================================
 #  🏴‍☠️ TAVERNA ROLEPLAY ECOSYSTEM — CYBERPUNK LAUNCHER
@@ -7,12 +8,13 @@
 # ============================================================
 
 if ! command -v tmux &> /dev/null; then
-    echo "tmux no está instalado. Instalando..."
-    sudo apt-get update && sudo apt-get install -y tmux
+    echo "Error: tmux no está instalado. Instálalo antes de ejecutar este script."
+    exit 1
 fi
 
 # Directorio Base
-BASE_DIR="/home/lucy-ubuntu/Escritorio/Taverna"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+BASE_DIR="${BASE_DIR:-$SCRIPT_DIR}"
 SESSION="taverna_eco"
 
 # ── API Keys (configurar acá o exportar como env vars) ──────
@@ -34,7 +36,7 @@ SESSION="taverna_eco"
 # export SUPABASE_ACCESS_TOKEN="tu-supabase-token"
 
 # Matar sesión existente si la hay
-tmux kill-session -t $SESSION 2>/dev/null
+tmux kill-session -t "$SESSION" 2>/dev/null || true
 
 pkill -f "SillyTavern/server.js" || true
 pkill -f "SillyTavern-extras/server.py" || true
@@ -46,21 +48,21 @@ fuser -k 13001/tcp 13002/tcp 13003/tcp 13004/tcp 2>/dev/null
 sleep 2
 
 # Crear nueva sesión tmux en background
-tmux new-session -d -s $SESSION
+tmux new-session -d -s "$SESSION"
 
 # ── [0] Frontend: SillyTavern (Puerto 8123) ─────────────────
-tmux rename-window -t $SESSION:0 'SillyTavern'
-tmux send-keys -t $SESSION:0 "cd $BASE_DIR/SillyTavern && npm start" C-m
+tmux rename-window -t "$SESSION":0 'SillyTavern'
+tmux send-keys -t "$SESSION":0 "cd '$BASE_DIR/SillyTavern' && npm start" C-m
 
 # ── [1] Motor de Percepción: ST-Extras (Puerto 5100) ────────
-tmux new-window -t $SESSION -n 'ST-Extras'
-tmux send-keys -t $SESSION:1 "cd $BASE_DIR/SillyTavern-extras && source venv/bin/activate && python3 server.py --enable-modules=caption,chromadb --listen" C-m
+tmux new-window -t "$SESSION" -n 'ST-Extras'
+tmux send-keys -t "$SESSION":1 "cd '$BASE_DIR/SillyTavern-extras' && source venv/bin/activate && python3 server.py --enable-modules=caption,chromadb --listen" C-m
 
 # ── [2] MCP Bridge: Lanza TODOS los bridges ──────────────────
 # Logs duplicated to /tmp/taverna_bridges.log for post-mortem analysis
 LOG_FILE="/tmp/taverna_bridges.log"
-tmux new-window -t $SESSION -n 'MCP-Bridges'
-tmux send-keys -t $SESSION:2 "cd $BASE_DIR && node mcp_bridges.js 2>&1 | tee -a $LOG_FILE" C-m
+tmux new-window -t "$SESSION" -n 'MCP-Bridges'
+tmux send-keys -t "$SESSION":2 "cd '$BASE_DIR' && node mcp_bridges.js 2>&1 | tee -a '$LOG_FILE'" C-m
 
 echo ""
 echo "🏴‍☠️ ════════════════════════════════════════════════════════"
@@ -115,4 +117,4 @@ echo ""
 echo "  ⏳ Waiting 15 seconds for services to initialize..."
 sleep 15
 echo ""
-$BASE_DIR/smoke_test.sh
+"$BASE_DIR/smoke_test.sh"
