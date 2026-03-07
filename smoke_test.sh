@@ -11,7 +11,10 @@
 # ============================================================
 
 VERBOSE=false
-[[ "$1" == "--verbose" ]] && VERBOSE=true
+[[ "${1:-}" == "--verbose" ]] && VERBOSE=true
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+BASE_DIR="${BASE_DIR:-$SCRIPT_DIR}"
 
 PASS=0
 FAIL=0
@@ -42,7 +45,7 @@ echo ""
 echo -e "${CYAN}── Core Processes ─────────────────────────────────────────${NC}"
 
 # SillyTavern
-if ss -tlnp 2>/dev/null | grep -q ":8123 " || pgrep -f "SillyTavern/server.js" > /dev/null 2>&1; then
+if (command -v ss >/dev/null 2>&1 && ss -tlnp 2>/dev/null | grep -q ":8123 ") || pgrep -f "SillyTavern/server.js" > /dev/null 2>&1; then
     check_ok "SillyTavern server process (listening on 8123)"
 else
     check_fail "SillyTavern server process NOT running"
@@ -56,7 +59,7 @@ else
 fi
 
 # MCP Bridges
-if ss -tlnp 2>/dev/null | grep -q ":13001 " || pgrep -f "mcp_bridges.js" > /dev/null 2>&1; then
+if (command -v ss >/dev/null 2>&1 && ss -tlnp 2>/dev/null | grep -q ":13001 ") || pgrep -f "mcp_bridges.js" > /dev/null 2>&1; then
     check_ok "MCP Bridges process"
 else
     check_fail "MCP Bridges process NOT running"
@@ -79,7 +82,7 @@ echo -e "${CYAN}── Core Ports ───────────────�
 check_port() {
     local port=$1
     local label=$2
-    if ss -tlnp 2>/dev/null | grep -q ":${port} " || netstat -tlnp 2>/dev/null | grep -q ":${port} "; then
+    if (command -v ss >/dev/null 2>&1 && ss -tlnp 2>/dev/null | grep -q ":${port} ") || (command -v netstat >/dev/null 2>&1 && netstat -tlnp 2>/dev/null | grep -q ":${port} "); then
         check_ok "$label (port $port)"
     else
         check_fail "$label (port $port) NOT listening"
@@ -154,7 +157,7 @@ echo ""
 # ============================================================
 echo -e "${CYAN}── SQLite Database ────────────────────────────────────────${NC}"
 
-DB_PATH="/home/lucy-ubuntu/Escritorio/Taverna/taverna_stats.db"
+DB_PATH="${DB_PATH:-$BASE_DIR/taverna_stats.db}"
 
 if [ -f "$DB_PATH" ]; then
     check_ok "Database file exists"
