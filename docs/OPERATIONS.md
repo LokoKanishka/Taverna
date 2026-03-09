@@ -33,6 +33,18 @@ bash scripts/doctor.sh
 bash scripts/smoke_test.sh http://localhost:8000
 ```
 
+## Antigravity Bridge Usage
+
+The `bridge/` directory contains minimal scripts for external interaction:
+
+- `bridge/probe.sh`: Health check.
+- `bridge/execute.sh "COMMAND"`: Enqueue any STscript command.
+
+Example for Antigravity:
+```bash
+./bridge/execute.sh "/model MyModel"
+```
+
 ## Troubleshooting
 
 - **Backend not responding:** Ensure the plugin is in `plugins/` and dependencies are installed. Check ST console logs for `[ST-Orchestrator]`.

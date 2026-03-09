@@ -24,7 +24,7 @@ echo -e "${GREEN}OK${NC}"
 
 # 2. Core Files
 echo -n "[2/4] Checking core files... "
-FILES=("orchestrator/backend/index.ts" "orchestrator/frontend/index.js" "docs/ST_ORCHESTRATOR_PROTOCOL.md")
+FILES=("orchestrator/backend/src/index.ts" "orchestrator/frontend/index.js" "docs/ST_ORCHESTRATOR_PROTOCOL.md")
 for f in "${FILES[@]}"; do
     if [ ! -f "$f" ]; then
         echo -e "${RED}MISSING $f${NC}"

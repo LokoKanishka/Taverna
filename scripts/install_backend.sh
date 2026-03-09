@@ -14,7 +14,7 @@ TARGET_DIR="$ST_PATH/plugins/ST-Orchestrator"
 echo "Installing Backend to $TARGET_DIR..."
 
 mkdir -p "$TARGET_DIR/src"
-cp orchestrator/backend/index.ts "$TARGET_DIR/src/"
+cp orchestrator/backend/src/index.ts "$TARGET_DIR/src/"
 cp orchestrator/backend/package.json "$TARGET_DIR/"
 cp orchestrator/backend/tsconfig.json "$TARGET_DIR/"
 cp orchestrator/backend/webpack.config.js "$TARGET_DIR/"
