@@ -1,7 +1,0 @@
-{
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.27.1",
-    "express": "^5.2.1",
-    "jsonrpc-lite": "^2.2.0"
-  }
-}
