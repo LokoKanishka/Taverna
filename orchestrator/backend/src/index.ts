@@ -1,6 +1,7 @@
 import bodyParser from 'body-parser';
 import { Router, Request, Response } from 'express';
 import { Chalk } from 'chalk';
+import { getState, updateSystem, updateCommands, recordError } from './state';
 
 /**
  * TAVERNA ORCHESTRATOR CORE - BACKEND PLUGIN
@@ -34,7 +35,32 @@ export async function init(router: Router): Promise<void> {
 
     // Health check endpoint
     router.post('/probe', (_req: Request, res: Response) => {
-        return res.json({ status: 'ok', plugin: 'st-orchestrator' });
+        const currentState = getState();
+        const lastPoll = (currentState as any)._internal_last_poll || 0;
+        const isFrontendConnected = (Date.now() - lastPoll) < 5000;
+
+        return res.json({
+            status: 'ok',
+            plugin: 'st-orchestrator',
+            queue_depth: commandQueue.length,
+            last_poll_time: lastPoll,
+            frontend_connected: isFrontendConnected
+        });
+    });
+
+    // State endpoint (Phase D)
+    router.get('/state', (_req: Request, res: Response) => {
+        const currentState = getState();
+        const lastPoll = (currentState as any)._internal_last_poll || 0;
+        const isFrontendConnected = (Date.now() - lastPoll) < 5000;
+
+        updateSystem({
+            frontend_extension_up: isFrontendConnected,
+            poll_active: isFrontendConnected
+        });
+        updateCommands({ queue_depth: commandQueue.length });
+
+        return res.json(getState());
     });
 
     /**
@@ -58,13 +84,19 @@ export async function init(router: Router): Promise<void> {
                 timestamp: Date.now()
             });
 
+            updateCommands({
+                queue_depth: commandQueue.length,
+                last_command_sent: Date.now()
+            });
+
             return res.json({
                 status: 'success',
                 message: 'Command queued for execution',
                 queue_size: commandQueue.length
             });
-        } catch (error) {
+        } catch (error: any) {
             console.error(chalk.red(MODULE_NAME), 'Execution error:', error);
+            recordError(error.message || String(error));
             return res.status(500).json({ status: 'error', error: 'Internal Server Error' });
         }
     });
@@ -74,8 +106,17 @@ export async function init(router: Router): Promise<void> {
      * Endpoint used by the frontend extension to retrieve and clear the queue.
      */
     router.get('/poll', (_req: Request, res: Response) => {
+        const st = getState();
+        (st as any)._internal_last_poll = Date.now();
+
         const batch = [...commandQueue];
+        if (batch.length > 0) {
+            updateCommands({ last_command_consumed: Date.now() });
+        }
+
         commandQueue = [];
+        updateCommands({ queue_depth: 0 });
+
         return res.json(batch);
     });
 

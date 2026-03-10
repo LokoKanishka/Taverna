@@ -1,0 +1,80 @@
+[
+  {
+    "id": "probe_system",
+    "intent": "Measure and report the health of all structural components.",
+    "layer": "Backend API & Bridge CLI",
+    "primary_path": "HTTP POST to /probe",
+    "fallbacks": [],
+    "risk": "Low",
+    "expected_time_ms": 100,
+    "success_criteria": "HTTP 200 OK with valid JSON",
+    "failure_signals": ["Timeout", "Connection refused"],
+    "recovery": "Notify agent, suggest stack restart",
+    "confidence": "High"
+  },
+  {
+    "id": "enqueue_remote_command",
+    "intent": "Insert a command into the backend queue for asynchronous frontend execution.",
+    "layer": "Backend API",
+    "primary_path": "HTTP POST to /execute",
+    "fallbacks": [],
+    "risk": "Low",
+    "expected_time_ms": 100,
+    "success_criteria": "HTTP 200 OK and queue_size incremented",
+    "failure_signals": ["HTTP 500", "Payload error 400"],
+    "recovery": "Linear backoff retry",
+    "confidence": "High"
+  },
+  {
+    "id": "poll_command_delivery",
+    "intent": "Transfer queued commands from backend to ST frontend.",
+    "layer": "Frontend Extension -> Backend API",
+    "primary_path": "GET to /poll every 1000ms",
+    "fallbacks": [],
+    "risk": "Low",
+    "expected_time_ms": 50,
+    "success_criteria": "HTTP 200 OK, queue emptied",
+    "failure_signals": ["Network Error", "queue_depth static"],
+    "recovery": "Silent retry on next tick",
+    "confidence": "High"
+  },
+  {
+    "id": "verify_frontend_consumption",
+    "intent": "Confirm queued commands have been processed by the frontend.",
+    "layer": "Bridge CLI",
+    "primary_path": "Monitor queue_depth reduction via probe_system",
+    "fallbacks": ["Read server terminal logs"],
+    "risk": "Low",
+    "expected_time_ms": 2000,
+    "success_criteria": "queue_depth returns to 0 after enqueue",
+    "failure_signals": ["queue_depth static > 5000ms"],
+    "recovery": "Declare Poll Loop Broken",
+    "confidence": "Medium"
+  },
+  {
+    "id": "execute_simple_visible_action",
+    "intent": "Execute a visible UI state change without breaking context.",
+    "layer": "Frontend Extension",
+    "primary_path": "Enqueue slash command (e.g., /v or /sys) and poll",
+    "fallbacks": ["UI Automation"],
+    "risk": "Medium",
+    "expected_time_ms": 2000,
+    "success_criteria": "Command consumed and UI updated",
+    "failure_signals": ["Command consumed but no visible change"],
+    "recovery": "Log failure, return feedback",
+    "confidence": "Medium"
+  },
+  {
+    "id": "read_basic_runtime_state",
+    "intent": "Safely read a segment of the live SillyTavern state.",
+    "layer": "Frontend Extension -> Backend API",
+    "primary_path": "Frontend submits state on /poll; Bridge reads via /state",
+    "fallbacks": ["Read JSON files in SillyTavern/data/"],
+    "risk": "Medium",
+    "expected_time_ms": 500,
+    "success_criteria": "Payload of fresh state verifiable",
+    "failure_signals": ["Payload outdated timestamp", "Empty payload"],
+    "recovery": "Request manual refresh",
+    "confidence": "Medium"
+  }
+]
