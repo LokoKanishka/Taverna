@@ -2,20 +2,29 @@
 
 Manual and automated operations for management.
 
+## Prerequisites
+
+- An existing [SillyTavern](https://github.com/SillyTavern/SillyTavern) installation.
+- Node.js and npm (compatibile with your SillyTavern version).
+- `curl` for smoke testing.
+
 ## Installation
 
-Use the provided scripts:
+Taverna-v2 is installed as a plugin/extension within your SillyTavern directory.
 
 ```bash
-# 1. Install Backend
+# 1. Install Backend Plugin
+# This stages the files in SillyTavern/plugins/ST-Orchestrator
 bash scripts/install_backend.sh /path/to/SillyTavern
 
-# 2. Build Backend (mandatory for first time)
+# 2. Build Backend
+# Mandatory for the first time or after updates
 cd /path/to/SillyTavern/plugins/ST-Orchestrator
 npm install
 npm run build
 
-# 3. Install Frontend
+# 3. Install Frontend Extension
+# This installs the extension in SillyTavern/data/default-user/extensions/ST-Orchestrator
 bash scripts/install_frontend.sh /path/to/SillyTavern
 ```
 

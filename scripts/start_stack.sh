@@ -1,18 +1,21 @@
 #!/bin/bash
 
 # start_stack.sh
-# Entry point to start the Taverna-v2 Orchestration stack.
+# Convenience wrapper to start an existing SillyTavern instance.
+# Taverna-v2 is a bridge/plugin and requires SillyTavern to be installed separately.
 
-# 1. Start SillyTavern (Optional/Wrapper)
-# This script assumes SillyTavern is installed and configured.
-
-ST_PATH="${1:-../SillyTavern}"
-
-if [ ! -d "$ST_PATH" ]; then
-    echo "Error: SillyTavern directory not found at $ST_PATH"
+if [ -z "$1" ]; then
     echo "Usage: $0 /path/to/SillyTavern"
     exit 1
 fi
 
-echo "Starting SillyTavern from $ST_PATH..."
-cd "$ST_PATH" && npm start
+ST_PATH="$1"
+
+if [ ! -d "$ST_PATH" ]; then
+    echo "Error: SillyTavern directory not found at $ST_PATH"
+    exit 1
+fi
+
+echo "Starting SillyTavern wrapper from $ST_PATH..."
+cd "$ST_PATH"
+npm start
