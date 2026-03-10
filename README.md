@@ -18,7 +18,12 @@ Taverna-v2 is a bridge/plugin designed to install over an existing SillyTavern i
 3. **Install Frontend:** `bash scripts/install_frontend.sh /path/to/SillyTavern`
 4. **Setup:** Go to your SillyTavern directory, run `npm install` and `npm run build` in `plugins/ST-Orchestrator`.
 
-See `docs/OPERATIONS.md` for detailed instructions.
+Check `docs/OPERATIONS.md` for detailed installation instructions.
+
+## Health Check & Verification
+- **Static Check:** Run `bash scripts/doctor.sh` to verify repository and installation integrity.
+- **Circuit Smoke Test:** Run `bash scripts/smoke_test.sh http://localhost:8000` (requires a running SillyTavern instance).
+- **Note:** `doctor.sh` is the primary health check; full E2E orchestration tests are part of the operational stage.
 
 ## Structure
 - `/orchestrator`: Backend Plugin & Frontend Extension code.
