@@ -12,7 +12,7 @@ class TavernaOperations {
     /**
      * Standardized response builder
      */
-    _buildResult(name, before, after, action, isOk, error = null) {
+    _buildResult(name, before, after, action, isOk, error = null, rollbackPlan = null, rollbackAttempted = false, rollbackResult = null) {
         return {
             ok: isOk,
             operation: name,
@@ -20,6 +20,9 @@ class TavernaOperations {
             action_taken: action,
             observed_after: after,
             verified: isOk && !error,
+            rollback_plan: rollbackPlan,
+            rollback_attempted: rollbackAttempted,
+            rollback_result: rollbackResult,
             error: error
         };
     }
@@ -62,18 +65,27 @@ class TavernaOperations {
 
         // 2. Apply updates
         const newSettings = { ...existingSettings, ...validatedUpdates };
+        const rollbackPlan = `Restore specific keys (${Object.keys(validatedUpdates).join(', ')}) to their values from observed_before`;
         
-        // 3. Write back (POST /api/settings/save wants the unstringified object payload)
+        // 3. Write back
         const saveRes = await this.client.post('/api/settings/save', newSettings);
         if (!saveRes.success) {
-            return this._buildResult('settings.update', existingSettings, null, 'update', false, saveRes.error);
+            // Rollback if the REST call itself threw (unlikely but possible)
+            const rbRes = await this.client.post('/api/settings/save', existingSettings);
+            return this._buildResult('settings.update', existingSettings, null, 'update', false, saveRes.error, rollbackPlan, true, rbRes.success ? 'Success' : 'Failed: ' + rbRes.error);
         }
 
         // 4. Verify
         const afterRes = await this.settingsRead();
         const isVerified = Object.keys(validatedUpdates).every(k => afterRes.observed_after[k] === validatedUpdates[k]);
 
-        return this._buildResult('settings.update', existingSettings, afterRes.observed_after, 'update', isVerified, isVerified ? null : 'Verification failed');
+        if (!isVerified) {
+             // Rollback due to mismatch
+             const rbRes = await this.client.post('/api/settings/save', existingSettings);
+             return this._buildResult('settings.update', existingSettings, afterRes.observed_after, 'update', false, 'Verification failed', rollbackPlan, true, rbRes.success ? 'Success' : 'Failed: ' + rbRes.error);
+        }
+
+        return this._buildResult('settings.update', existingSettings, afterRes.observed_after, 'update', true);
     }
 
     // ==========================================
@@ -99,12 +111,10 @@ class TavernaOperations {
     }
 
     async modelSetActive(api_server, model_id) {
-        // e.g., Set to "openai" and "gpt-4o"
-        // 1. Read
+        // 1. Read before
         const current = await this.modelGetActive();
         
         // 2. Modify
-        // The endpoint is actually settings.save, but we are updating `api_server_default` and `temp_API`
         const settingsRes = await this.settingsRead();
         const existingSettings = settingsRes.observed_after;
         
@@ -112,17 +122,26 @@ class TavernaOperations {
         newSettings.api_server_default = api_server;
         newSettings[`temp_${api_server}`] = model_id;
         
+        const rollbackPlan = `Restore api_server_default and temp_${api_server} to observed_before states via /api/settings/save`;
+
         const saveRes = await this.client.post('/api/settings/save', newSettings);
 
         if (!saveRes.success) {
-             return this._buildResult('model.set_active', current.observed_after, null, 'set', false, saveRes.error);
+             // Attempt rollback
+             const rbRes = await this.client.post('/api/settings/save', existingSettings);
+             return this._buildResult('model.set_active', current.observed_after, null, 'set', false, saveRes.error, rollbackPlan, true, rbRes.success ? 'Success' : 'Failed: ' + rbRes.error);
         }
 
         // 3. Verify
         const after = await this.modelGetActive();
         const isVerified = after.observed_after.api === api_server && after.observed_after.model === model_id;
         
-        return this._buildResult('model.set_active', current.observed_after, after.observed_after, 'set', isVerified, isVerified ? null : 'Model switch failed verification');
+        if (!isVerified) {
+             const rbRes = await this.client.post('/api/settings/save', existingSettings);
+             return this._buildResult('model.set_active', current.observed_after, after.observed_after, 'set', false, 'Model switch failed verification', rollbackPlan, true, rbRes.success ? 'Success' : 'Failed: ' + rbRes.error);
+        }
+
+        return this._buildResult('model.set_active', current.observed_after, after.observed_after, 'set', true);
     }
 
     async modelList() {
@@ -172,19 +191,37 @@ class TavernaOperations {
         const existingCard = beforeRes.observed_after;
         const finalCard = { ...existingCard, ...validUpdates };
 
-        // We prepare multipart/form-data for ST. But fetch doesn't easily do it natively in Node without FormData.
-        // Node 18 fetch has FormData!
+        // We prepare multipart/form-data for ST.
         const formData = new FormData();
         for (const [key, value] of Object.entries(finalCard)) {
-            // Arrays (like alternate_greetings) need to be stringified for ST
             if (typeof value === 'object') formData.append(key, JSON.stringify(value));
             else formData.append(key, value);
         }
         
-        // ST specifically requires 'avatar_url' for the edit endpoint
         if (!formData.has('avatar_url')) {
             formData.append('avatar_url', validUpdates.avatar);
         }
+
+        const rollbackPlan = `Restore character ${validUpdates.avatar} to exact previous field state via multipart/form-data POST /api/characters/edit`;
+
+        const performRollback = async () => {
+             const rbForm = new FormData();
+             for (const [key, value] of Object.entries(existingCard)) {
+                 if (typeof value === 'object') rbForm.append(key, JSON.stringify(value));
+                 else rbForm.append(key, value);
+             }
+             if (!rbForm.has('avatar_url')) rbForm.append('avatar_url', validUpdates.avatar);
+             if (!rbForm.has('ch_name') && existingCard.name) rbForm.append('ch_name', existingCard.name);
+             
+             try {
+                 const rbRes = await fetch(`${this.client.baseUrl}/api/characters/edit`, {
+                      method: 'POST', body: rbForm, headers: { 'Accept': 'application/json' }
+                 });
+                 return rbRes.ok ? 'Success' : `Failed: ${await rbRes.text()}`;
+             } catch (e) {
+                 return `Failed: ${e.message}`;
+             }
+        };
 
         try {
             const saveRes = await fetch(`${this.client.baseUrl}/api/characters/edit`, {
@@ -195,16 +232,23 @@ class TavernaOperations {
             const dataText = await saveRes.text();
             
             if (!saveRes.ok) {
-                 return this._buildResult('character.update_fields', existingCard, null, 'update', false, dataText);
+                 const rbResult = await performRollback();
+                 return this._buildResult('character.update_fields', existingCard, null, 'update', false, dataText, rollbackPlan, true, rbResult);
             }
 
             // Verify
             const afterRes = await this.characterRead(validUpdates.avatar);
-            const verified = validUpdates.description ? afterRes.observed_after.description === validUpdates.description : true;
+            const verified = validUpdates.description ? afterRes.observed_after.description === validUpdates.description : true; // Expand logic as needed for MVP
             
-            return this._buildResult('character.update_fields', existingCard, afterRes.observed_after, 'update', verified);
+            if (!verified) {
+                 const rbResult = await performRollback();
+                 return this._buildResult('character.update_fields', existingCard, afterRes.observed_after, 'update', false, 'Verification mismatch', rollbackPlan, true, rbResult);
+            }
+
+            return this._buildResult('character.update_fields', existingCard, afterRes.observed_after, 'update', true);
         } catch (e) {
-            return this._buildResult('character.update_fields', existingCard, null, 'update', false, e.message);
+            const rbResult = await performRollback();
+            return this._buildResult('character.update_fields', existingCard, null, 'update', false, e.message, rollbackPlan, true, rbResult);
         }
     }
 
@@ -319,15 +363,30 @@ class TavernaOperations {
              };
         }
 
+        const rollbackPlan = `Restore complete payload describing lorebook ${lorebook_name} prior to injection`;
+
+        const performRollback = async () => {
+             const rbRes = await this.client.post('/api/worldinfo/edit', { name: lorebook_name, data: before });
+             return rbRes.success ? 'Success' : `Failed: ${rbRes.error}`;
+        };
+
         const res = await this.client.post('/api/worldinfo/edit', { name: lorebook_name, data: lb });
-        if (!res.success) return this._buildResult('lorebook.upsert', before, null, 'upsert', false, res.error);
+        if (!res.success) {
+            const rbResult = await performRollback();
+            return this._buildResult('lorebook.upsert', before, null, 'upsert', false, res.error, rollbackPlan, true, rbResult);
+        }
 
         // Verify
         const afterRes = await this.lorebookRead(lorebook_name);
         const savedEntryId = Object.keys(afterRes.observed_after.entries).find(k => afterRes.observed_after.entries[k].key.includes(keyword));
         const verified = !!savedEntryId && afterRes.observed_after.entries[savedEntryId].content === content;
 
-        return this._buildResult('lorebook.upsert', before, afterRes.observed_after, 'upsert', verified);
+        if (!verified) {
+            const rbResult = await performRollback();
+            return this._buildResult('lorebook.upsert', before, afterRes.observed_after, 'upsert', false, 'Verification mismatch on lorebook injection', rollbackPlan, true, rbResult);
+        }
+
+        return this._buildResult('lorebook.upsert', before, afterRes.observed_after, 'upsert', true);
     }
 }
 
