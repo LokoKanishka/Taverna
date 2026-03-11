@@ -1,0 +1,30 @@
+{
+    "scenes": {
+        "1772677610950": {
+            "roles": {
+                "character": {
+                    "api_server": "kobold",
+                    "model_id": "antigravity-orchestrator-v1",
+                    "preset": "Taverna-Default",
+                    "character_name": "Nova"
+                },
+                "master": {
+                    "api_server": "openai",
+                    "model_id": "gpt-4o",
+                    "preset": "Narrative-v2",
+                    "character_name": "Director de Juego"
+                }
+            },
+            "state": {
+                "current_location": "Night City - Sector 4",
+                "time_of_day": "Midnight",
+                "plot_tension": 0.9,
+                "active_threats": [
+                    "Arasaka Patrol"
+                ],
+                "last_action": "Cyberdeck hacked"
+            }
+        }
+    },
+    "global_defaults": {}
+}

@@ -1,0 +1,19 @@
+{
+    "scenes": {
+        "1772677610950": {
+            "roles": {
+                "player": {
+                    "api_server": "anthropic",
+                    "model_id": "claude-3-5-sonnet"
+                }
+            }
+        }
+    },
+    "global_defaults": {
+        "master": {
+            "api_server": "openai",
+            "model_id": "gpt-4o",
+            "preset": "Divine High-Instruct"
+        }
+    }
+}
