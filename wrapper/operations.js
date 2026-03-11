@@ -98,6 +98,51 @@ class TavernaOperations {
         };
     }
 
+    /**
+     * Strict Response Builder for Memory Governance (Phase 11C)
+     */
+    _buildMemoryResult(params) {
+        return {
+            ok: params.ok,
+            operation: params.operation,
+            scope: params.scope || null,
+            memory_key: params.memory_key || null,
+            observed_before: params.observed_before || null,
+            action_taken: params.action_taken || null,
+            observed_after: params.observed_after || null,
+            verified: params.verified || false,
+            rollback_supported: params.rollback_supported || false,
+            rollback_attempted: params.rollback_attempted || false,
+            rollback_result: params.rollback_result || null,
+            error: params.error || null
+        };
+    }
+
+    _loadMemory() {
+        try {
+            const fs = require('fs');
+            const path = '/home/lucy-ubuntu/Escritorio/Taverna-v2/config/persistent_memory.json';
+            if (fs.existsSync(path)) {
+                return JSON.parse(fs.readFileSync(path, 'utf8'));
+            }
+        } catch (e) {
+            console.error("Error loading persistent memory:", e);
+        }
+        return { scene: {}, role: {}, character: {} };
+    }
+
+    _saveMemory(memory) {
+        try {
+            const fs = require('fs');
+            const path = '/home/lucy-ubuntu/Escritorio/Taverna-v2/config/persistent_memory.json';
+            fs.writeFileSync(path, JSON.stringify(memory, null, 4), 'utf8');
+            return true;
+        } catch (e) {
+            console.error("Error saving persistent memory:", e);
+            return false;
+        }
+    }
+
     // ==========================================
     // SYSTEM & RUNTIME P0
     // ==========================================
@@ -1148,6 +1193,55 @@ class TavernaOperations {
         });
     }
 
+    async memoryRead(scope, key) {
+        const memory = this._loadMemory();
+        const data = (memory[scope] && memory[scope][key]) ? memory[scope][key] : null;
+        return this._buildMemoryResult({
+            ok: true,
+            operation: 'memory.read',
+            scope,
+            memory_key: key,
+            observed_after: data,
+            verified: true
+        });
+    }
+
+    async memoryWrite(scope, key, content) {
+        if (!['scene', 'role', 'character'].includes(scope)) {
+            return this._buildMemoryResult({ ok: false, operation: 'memory.write', error: `Invalid scope: ${scope}` });
+        }
+        const memory = this._loadMemory();
+        if (!memory[scope]) memory[scope] = {};
+        
+        const before = memory[scope][key] || null;
+        memory[scope][key] = content;
+        
+        const saved = this._saveMemory(memory);
+        return this._buildMemoryResult({
+            ok: saved,
+            operation: 'memory.write',
+            scope,
+            memory_key: key,
+            observed_before: before,
+            action_taken: `Wrote memory for ${scope}/${key}`,
+            observed_after: content,
+            verified: saved,
+            error: saved ? null : "Failed to save to disk"
+        });
+    }
+
+    async memorySnapshot(scope = null) {
+        const memory = this._loadMemory();
+        const observed = scope ? (memory[scope] || {}) : memory;
+        return this._buildMemoryResult({
+            ok: true,
+            operation: 'memory.snapshot',
+            scope: scope || 'all',
+            observed_after: observed,
+            verified: true
+        });
+    }
+
     async contextBuildForRole(role_id, group_id = null) {
         const budgets = {
             master: 8192,
@@ -1168,8 +1262,14 @@ class TavernaOperations {
         const budget = budgets[role_id] || 4096;
         let current_size = 0;
 
+        // Load Persistent Memory (Phase 11C)
+        const memory = this._loadMemory();
+        const sceneMemory = group_id ? (memory.scene[group_id] || null) : null;
+        const charMemory = (role_id === 'character') ? (memory.character['default'] || null) : null;
+
         // Helper: Process and evaluate a data source
         const evaluateSource = (id, type, data, priority, visibility = true) => {
+            if (!data) return false;
             const size = Math.round(JSON.stringify(data).length / 4); // Estimated tokens
             const entry = {
                 source_id: id,
@@ -1184,7 +1284,6 @@ class TavernaOperations {
             if (!visibility) {
                 entry.exclusion_reason = 'ROLE_RESTRICTION';
             } else if (current_size + size > budget) {
-                // Potential for truncation logic here in future phases
                 entry.exclusion_reason = 'BUDGET_EXHAUSTED';
             } else {
                 entry.included = true;
@@ -1200,28 +1299,33 @@ class TavernaOperations {
         // 2. Scene State (P9)
         evaluateSource('scene_state', 'state', scene, 9);
 
-        // 3. Character Card (P8) - Restricted to character or master roles
+        // 3. Character Card (P8)
         const charVisibility = ['character', 'master'].includes(role_id);
-        const hasCharCard = evaluateSource('character_card', 'data', { persona: "Mock Persona Data" }, 8, charVisibility);
+        evaluateSource('character_card', 'data', { persona: "Mock Persona Data" }, 8, charVisibility);
 
-        // 4. Lorebook (P6) - Conflict check: Lorebook vs State (simplified)
+        // 4. Persistent Memory (P7) - Phase 11C
+        if (sceneMemory) evaluateSource('persistent_memory_scene', 'memory', sceneMemory, 7);
+        if (charMemory) evaluateSource('persistent_memory_char', 'memory', charMemory, 7, charVisibility);
+
+        // 5. Lorebook (P6)
         const loreData = { entry: "The door is magically locked." };
-        // Check for conflict: if scene state has 'door_unlocked', we flag lorebook as potentially stale
         const hasConflict = scene.group && scene.group.name.includes("Lab") && loreData.entry.includes("locked");
         if (hasConflict) {
             warnings.push("Source Conflict: Lorebook 'magically locked' may conflict with dynamic Scene State.");
         }
         evaluateSource('lorebook', 'world_info', loreData, 6);
 
-        // 5. Global Settings (P5) - Restricted to Master
+        // 6. Global Settings (P5)
         evaluateSource('global_settings', 'config', { api: "config" }, 5, role_id === 'master');
 
-        // Build compiled string from included sources
+        // Build compiled string
         let compiled = `[ROLE: ${role_id.toUpperCase()}] [BUDGET: ${budget}]\n`;
         source_trace.filter(s => s.included).forEach(s => {
             if (s.source_id === 'role_metadata') compiled += `[POLICY]: Using model ${policy.observed_after.model_id} via ${policy.observed_after.api_server}\n`;
             if (s.source_id === 'scene_state') compiled += `[SCENE STATE]: Group ${scene.group.name}, Members: ${scene.group.members.join(', ')}\n`;
             if (s.source_id === 'character_card') compiled += `[CHARACTER]: Persona context injected from card.\n`;
+            if (s.source_id === 'persistent_memory_scene') compiled += `[MEMORY SCENE]: ${JSON.stringify(sceneMemory)}\n`;
+            if (s.source_id === 'persistent_memory_char') compiled += `[MEMORY CHAR]: ${JSON.stringify(charMemory)}\n`;
             if (s.source_id === 'lorebook') compiled += `[LORE]: ${loreData.entry}\n`;
         });
 

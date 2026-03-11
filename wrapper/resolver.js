@@ -110,6 +110,21 @@ class NLResolver {
             if (matchSimple) return { intent: 'context_build', args: { role_id: matchSimple[1].trim() } };
         }
 
+        // --- Phase 11C: Memory Intents ---
+        if (text.startsWith('recordá en la escena')) {
+            const match = text.match(/escena (.*?) que (.*)/i);
+            if (match) return { intent: 'memory_write', args: { scope: 'scene', key: match[1].trim(), content: match[2].trim() } };
+        }
+        if (text.startsWith('leé la memoria de la escena')) {
+            const key = text.replace('leé la memoria de la escena ', '').trim();
+            return { intent: 'memory_read', args: { scope: 'scene', key } };
+        }
+        if (text.startsWith('sacá un snapshot de la memoria')) {
+            const scopeMatch = text.match(/memoria (scene|role|character|all)/i);
+            const scope = scopeMatch ? scopeMatch[1] : null;
+            return { intent: 'memory_snapshot', args: { scope } };
+        }
+
         return { intent: 'unknown', args: {} };
     }
 
@@ -224,6 +239,15 @@ class NLResolver {
                 case 'context_build':
                     baseOutput.mapped_operation = 'context.build_for_role';
                     res = await this.ops.contextBuildForRole(args.role_id, args.group_id);
+                    break;
+                case 'memory_write':
+                    res = await this.ops.memoryWrite(args.scope, args.key, args.content);
+                    break;
+                case 'memory_read':
+                    res = await this.ops.memoryRead(args.scope, args.key);
+                    break;
+                case 'memory_snapshot':
+                    res = await this.ops.memorySnapshot(args.scope);
                     break;
             }
 
