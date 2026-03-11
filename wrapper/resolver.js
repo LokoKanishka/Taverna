@@ -89,7 +89,12 @@ class NLResolver {
             observed_before: null,
             action_taken: null,
             observed_after: null,
+            operation_ok: false,
             verified: false,
+            rollback_attempted: false,
+            rollback_ok: false,
+            final_state_restored: false,
+            rollback_result_raw: null,
             error: null
         };
 
@@ -149,11 +154,16 @@ class NLResolver {
 
             // Merge operation result into struct
             if (res) {
-                 baseOutput.ok = res.ok;
+                 baseOutput.ok = res.operation_ok && (!res.rollback_attempted || res.rollback_ok); 
                  baseOutput.observed_before = res.observed_before;
                  baseOutput.action_taken = res.action_taken;
                  baseOutput.observed_after = res.observed_after;
+                 baseOutput.operation_ok = res.operation_ok;
                  baseOutput.verified = res.verified;
+                 baseOutput.rollback_attempted = res.rollback_attempted;
+                 baseOutput.rollback_ok = res.rollback_ok;
+                 baseOutput.final_state_restored = res.final_state_restored;
+                 baseOutput.rollback_result_raw = res.rollback_result_raw;
                  baseOutput.error = res.error;
             }
 

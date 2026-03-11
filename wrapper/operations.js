@@ -13,8 +13,16 @@ class TavernaOperations {
      * Standardized response builder
      */
     _buildResult(name, before, after, action, isOk, error = null, rollbackPlan = null, rollbackAttempted = false, rollbackResult = null) {
+        let finalStateRestored = false;
+        let rollbackOk = false;
+        
+        if (rollbackAttempted) {
+             rollbackOk = rollbackResult === 'Success';
+             finalStateRestored = rollbackOk;
+        }
+
         return {
-            ok: isOk,
+            operation_ok: isOk,
             operation: name,
             observed_before: before,
             action_taken: action,
@@ -22,7 +30,9 @@ class TavernaOperations {
             verified: isOk && !error,
             rollback_plan: rollbackPlan,
             rollback_attempted: rollbackAttempted,
-            rollback_result: rollbackResult,
+            rollback_ok: rollbackOk,
+            final_state_restored: finalStateRestored,
+            rollback_result_raw: rollbackResult,
             error: error
         };
     }
@@ -190,6 +200,20 @@ class TavernaOperations {
         
         const existingCard = beforeRes.observed_after;
         const finalCard = { ...existingCard, ...validUpdates };
+
+        // GUARDRAIL: Verify payload size to prevent OOM
+        // We do a rough estimate of the stringified size of the character object.
+        // If it's over 3MB, we abort the automated update to avoid crashing the Node process with massive ArrayBuffer copies.
+        let estimatedSize = 0;
+        try {
+             estimatedSize = Buffer.byteLength(JSON.stringify(existingCard), 'utf8');
+        } catch (e) {
+             return this._buildResult('character.update_fields', existingCard, null, 'update', false, 'Guardrail triggered: Character object is too complex/circular to safely serialize.');
+        }
+
+        if (estimatedSize > 3 * 1024 * 1024) { // 3MB limit
+             return this._buildResult('character.update_fields', existingCard, null, 'update', false, `Guardrail triggered: Character payload size (${(estimatedSize / 1024 / 1024).toFixed(2)}MB) exceeds safe limits (3MB) for automated rollback.`);
+        }
 
         // We prepare multipart/form-data for ST.
         const formData = new FormData();

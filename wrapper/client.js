@@ -28,8 +28,13 @@ class SillyTavernClient {
             options.body = JSON.stringify(payload);
         }
 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+        options.signal = controller.signal;
+
         try {
             const response = await fetch(url, options);
+            clearTimeout(timeoutId);
             
             // Wait, for 204 No Content, body is empty
             if (response.status === 204) {
