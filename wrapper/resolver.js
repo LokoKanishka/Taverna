@@ -71,6 +71,45 @@ class NLResolver {
             }
         }
 
+        if (text.includes('listame los chats recientes')) {
+            return { intent: 'chat_list_recent', args: {} };
+        }
+        if (text.includes('mostrame el chat actual')) {
+            return { intent: 'chat_resolve_target', args: { target: 'current' } };
+        }
+        if (text.startsWith('mostrame el chat de')) {
+            const match = rawText.match(/chat de (.*)/i);
+            if (match) return { intent: 'chat_resolve_target', args: { target: match[1].trim() } };
+        }
+        if (text.startsWith('leé los últimos')) {
+            const match = rawText.match(/últimos (\d+) mensajes del chat (actual|de .*)?/i);
+            if (match) {
+                const n = parseInt(match[1]);
+                const who = match[2] && match[2].toLowerCase() !== 'actual' ? match[2].substring(3).trim() : 'current';
+                return { intent: 'chat_read_tail', args: { target: who, tail: n } };
+            }
+        }
+        if (text.startsWith('inyectá este mensaje en el chat')) {
+            const match = rawText.match(/chat (actual|de .*?): (.*)/i);
+            if (match) {
+                const who = match[1].toLowerCase() === 'actual' ? 'current' : match[1].substring(3).trim();
+                const msg = match[2].trim();
+                return { intent: 'chat_inject', args: { target: who, message: msg } };
+            }
+        }
+
+        if (text.startsWith('sacá un snapshot del contexto')) {
+            const match = text.match(/contexto del grupo (.*)/i);
+            if (match) return { intent: 'context_snapshot', args: { group_id: match[1].trim() } };
+        }
+        if (text.startsWith('armá el contexto para el rol')) {
+            const match = text.match(/rol (.*?) en el grupo (.*)/i);
+            if (match) return { intent: 'context_build', args: { role_id: match[1].trim(), group_id: match[2].trim() } };
+            
+            const matchSimple = text.match(/rol (.*)/i);
+            if (matchSimple) return { intent: 'context_build', args: { role_id: matchSimple[1].trim() } };
+        }
+
         return { intent: 'unknown', args: {} };
     }
 
@@ -150,21 +189,70 @@ class NLResolver {
                     baseOutput.mapped_operation = 'settings.update';
                     res = await this.ops.settingsUpdate(args);
                     break;
+                case 'chat_list_recent':
+                    res = await this.ops.chatListRecent();
+                    break;
+                case 'chat_resolve_target':
+                    res = await this.ops.chatResolveTarget(args.target);
+                    break;
+                case 'chat_read_tail': {
+                    const tgtTailRes = await this.ops.chatResolveTarget(args.target);
+                    if (!tgtTailRes.ok) { res = tgtTailRes; break; }
+                    res = await this.ops.chatReadTail(tgtTailRes.observed_after, args.tail);
+                    res.target_confidence = tgtTailRes.target_confidence;
+                    res.resolution_basis = tgtTailRes.resolution_basis;
+                    res.candidates = tgtTailRes.candidates;
+                    break;
+                }
+                case 'chat_inject': {
+                    const tgtInjRes = await this.ops.chatResolveTarget(args.target);
+                    if (!tgtInjRes.ok) { res = tgtInjRes; break; }
+                    if (tgtInjRes.target_confidence === 'none') {
+                        res = { ...tgtInjRes, ok: false, error: "Aborting injection due to 'none' confidence on resolution" };
+                        break;
+                    }
+                    res = await this.ops.chatInject(tgtInjRes.observed_after, args.message);
+                    res.target_confidence = tgtInjRes.target_confidence;
+                    res.resolution_basis = tgtInjRes.resolution_basis;
+                    res.candidates = tgtInjRes.candidates;
+                    break;
+                }
+                case 'context_snapshot':
+                    baseOutput.mapped_operation = 'context.snapshot';
+                    res = await this.ops.contextSnapshot(args.group_id);
+                    break;
+                case 'context_build':
+                    baseOutput.mapped_operation = 'context.build_for_role';
+                    res = await this.ops.contextBuildForRole(args.role_id, args.group_id);
+                    break;
             }
 
             // Merge operation result into struct
             if (res) {
-                 baseOutput.ok = res.operation_ok && (!res.rollback_attempted || res.rollback_ok); 
+                 const isChatResult = typeof res.target_confidence !== 'undefined';
+
+                 baseOutput.ok = typeof res.ok === 'boolean' ? res.ok : (res.operation_ok && (!res.rollback_attempted || res.rollback_ok)); 
+                 baseOutput.mapped_operation = res.operation || baseOutput.mapped_operation;
                  baseOutput.observed_before = res.observed_before;
                  baseOutput.action_taken = res.action_taken;
                  baseOutput.observed_after = res.observed_after;
-                 baseOutput.operation_ok = res.operation_ok;
+                 baseOutput.operation_ok = typeof res.operation_ok !== 'undefined' ? res.operation_ok : res.ok;
                  baseOutput.verified = res.verified;
-                 baseOutput.rollback_attempted = res.rollback_attempted;
-                 baseOutput.rollback_ok = res.rollback_ok;
-                 baseOutput.final_state_restored = res.final_state_restored;
-                 baseOutput.rollback_result_raw = res.rollback_result_raw;
+                 baseOutput.rollback_attempted = res.rollback_attempted || false;
+                 baseOutput.rollback_ok = !!res.rollback_ok || (res.rollback_result === 'Success');
+                 baseOutput.final_state_restored = res.final_state_restored || !!baseOutput.rollback_ok;
+                 baseOutput.rollback_result_raw = res.rollback_result_raw || res.rollback_result;
                  baseOutput.error = res.error;
+
+                 // Support for strict Phase 8C chat fields
+                 if (isChatResult) {
+                     baseOutput.target = res.target;
+                     baseOutput.target_confidence = res.target_confidence;
+                     baseOutput.resolution_basis = res.resolution_basis;
+                     baseOutput.candidates = res.candidates;
+                     baseOutput.duplication_detected = res.duplication_detected;
+                     baseOutput.rollback_supported = res.rollback_supported;
+                 }
             }
 
             return baseOutput;
