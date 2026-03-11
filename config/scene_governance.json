@@ -6,6 +6,17 @@
                     "api_server": "anthropic",
                     "model_id": "claude-3-5-sonnet"
                 }
+            },
+            "state": {
+                "current_location": "Night City - Sector 4",
+                "time_of_day": "Midnight",
+                "plot_tension": 0.8,
+                "active_threats": [
+                    "Arasaka Patrol"
+                ],
+                "location": "Underground Clinic",
+                "security_level": "High",
+                "objective": "Retrieve data chip"
             }
         }
     },

@@ -1091,15 +1091,15 @@ class TavernaOperations {
         const data = snap.observed_after;
         
         const warnings = [];
-        if (!data.character_profile && role_id === 'character') warnings.push('Acting character profile missing');
-        if (data.chat_tail_len === 0) warnings.push('Chat history is empty');
-        if (Object.keys(data.state).length === 0) warnings.push('Scene state is uninitialized');
+        if (data && !data.character_profile && role_id === 'character') warnings.push('Acting character profile missing');
+        if (data && data.chat_tail_len === 0) warnings.push('Chat history is empty');
+        if (data && (!data.state || Object.keys(data.state).length === 0)) warnings.push('Scene state is uninitialized');
 
         return this._buildSceneResult({
-            ok: snap.ok,
+            ok: snap.ok && (data !== null),
             operation: 'context.verify_inputs',
             target: role_id,
-            observed_after: { warnings, valid: warnings.length === 0 },
+            observed_after: { warnings, valid: data && warnings.length === 0 },
             verified: true,
             warnings: warnings
         });
@@ -1206,14 +1206,43 @@ class TavernaOperations {
         });
     }
 
-    async memoryWrite(scope, key, content) {
+    async memoryWrite(scope, key, content, reason = "Unspecified update") {
         if (!['scene', 'role', 'character'].includes(scope)) {
             return this._buildMemoryResult({ ok: false, operation: 'memory.write', error: `Invalid scope: ${scope}` });
         }
+
+        // GUARDRAILS: Check payload size
+        const sizeLimit = (scope === 'role') ? 1024 : 2048; // 1KB for roles, 2KB for scene/char
+        const payloadSize = Buffer.byteLength(JSON.stringify(content), 'utf8');
+        if (payloadSize > sizeLimit) {
+            return this._buildMemoryResult({ 
+                ok: false, 
+                operation: 'memory.write', 
+                scope, 
+                memory_key: key, 
+                error: `Guardrail triggered: Payload size (${payloadSize} bytes) exceeds limit for scope ${scope} (${sizeLimit} bytes).` 
+            });
+        }
+
         const memory = this._loadMemory();
         if (!memory[scope]) memory[scope] = {};
         
         const before = memory[scope][key] || null;
+
+        // REDUNDANCY CHECK
+        if (JSON.stringify(before) === JSON.stringify(content)) {
+            return this._buildMemoryResult({
+                ok: true,
+                operation: 'memory.write',
+                scope,
+                memory_key: key,
+                observed_before: before,
+                action_taken: `Skipped write (redundant data detected)`,
+                observed_after: content,
+                verified: true
+            });
+        }
+
         memory[scope][key] = content;
         
         const saved = this._saveMemory(memory);
@@ -1223,7 +1252,7 @@ class TavernaOperations {
             scope,
             memory_key: key,
             observed_before: before,
-            action_taken: `Wrote memory for ${scope}/${key}`,
+            action_taken: `Wrote memory for ${scope}/${key}. Reason: ${reason}`,
             observed_after: content,
             verified: saved,
             error: saved ? null : "Failed to save to disk"
