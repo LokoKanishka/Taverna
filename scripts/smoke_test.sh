@@ -12,7 +12,7 @@ echo "Running Smoke Test against $ST_URL"
 
 # 1. Probe
 echo -n "Test 1: /probe ... "
-curl -s -X POST "$ENDPOINT/probe" | grep -q "st-orchestrator" && echo "PASS" || echo "FAIL"
+curl -s -o /dev/null -w "%{http_code}" -X POST "$ENDPOINT/probe" | grep -q "204" && echo "PASS" || echo "FAIL"
 
 # 2. Execute
 echo -n "Test 2: /execute ... "
