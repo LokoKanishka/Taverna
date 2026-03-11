@@ -1,44 +1,42 @@
-# Context and Memory Surfaces
+# Context, Memory and State Surfaces (Mapping)
 
-This document maps the sources of truth that compose the execution context for roles in Taverna.
+Este documento mapeia as fontes de dados e superfícies de controle para a governança de contexto e estado no Taverna-v2 sobre SillyTavern.
 
-## 1. Context Sources Mapping
+## Áreas de Dados
 
-| Source | Type | Origin | Persistence | Governance |
-| :--- | :--- | :--- | :--- | :--- |
-| **Immediate Chat** | Fluid | ST Chat JSONL | Persistent (File) | ST Native |
-| **Character Data** | Structural | ST Character JSON | Persistent (File) | ST Native |
-| **Group Metadata** | Structural | ST Group JSON | Persistent (File) | ST Native |
-| **Lorebook (WI)** | Reference | ST World Info | Persistent (JSON) | ST/Taverna |
-| **Preset (SAM)** | Technical | ST Settings/Presets | Persistent (JSON) | ST Native |
-| **Role Metadata** | Governance | Taverna `scene_governance.json` | Persistent (JSON) | Taverna |
-| **Scene State** | Logic | Taverna `scene_governance.json` | Persistent (JSON) | Taverna |
-| **Runtime Traces**| Observational| Taverna Internal Logs | Ephemeral | Taverna |
+| Superfície | Fonte de Verdade (ST) | Observação (Wrapper) | Atualização | Persistência | Risco |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Chat Context** | `/api/chats/get` | `chatReadTail` | `/api/chats/save` | Persistente (JSONL) | Médio (Corrida/Token limit) |
+| **Character Data** | `/api/characters/all` | `characterRead` | `/api/characters/edit` | Persistente (JSON) | Alto (Payload size/OOM) |
+| **Group/Scene** | `/api/groups/all` | `groupRead` | `/api/groups/edit` | Persistente (JSON) | Baixo |
+| **Lorebook/WI** | `/api/worldinfo/get` | `lorebookRead` | `/api/worldinfo/edit` | Persistente (JSON) | Médio (Injeção/Busca) |
+| **Presets** | `/api/settings/get` | `settingsRead` | `/api/settings/save` | Persistente (Settings) | Alto (Global impact) |
+| **Role Metadata**| `scene_governance.json`| `_loadGovernance` | `_saveGovernance` | Persistente (Local) | Baixo |
+| **Scene State** | Derived Snapshot | `sceneSnapshot` | N/A (Efímero) | Efímero / Derivado | Baixo |
 
-## 2. In-Depth Analysis
+## Detalhes de Superfície
 
-### A. Immediate Chat Context
-- **Observation**: Read via `chat.read_tail` or direct file access.
-- **Update**: Append via `chat.inject` or ST generation.
-- **Cost**: Linear increase with chat length (token context).
-- **Risk**: Injections might be lost if ST doesn't sync to disk immediately.
+### 1. Chat Context (Immediate Memory)
+- **Definição:** A sequência literal de mensagens enviadas.
+- **Governança:** Taverna injeta tokens de idempotência (`antigravity_token`).
+- **Composição:** Composto por mensagens de usuário, sistema e personagens.
 
-### B. Character and Group Data
-- **Observation**: Read via `character.read` and `group.read`.
-- **Update**: `character.update_fields` and `group.update_members`.
-- **Note**: These define the "who" and "where".
+### 2. Character Data (Identity Memory)
+- **Definição:** Atributos estáticos e dinâmicos (description, personality).
+- **Governança:** Bloqueio de campos específicos durante a execução de cena.
+- **Risco:** O orquestrador deve evitar sobrecarregar o buffer durante edições simultâneas.
 
-### C. Lorebook (World Info)
-- **Observation**: Read via `lorebook.read`.
-- **Update**: `lorebook.upsert_entry`.
-- **Role**: This is the primary "Long-term Memory" bridge for the LLM.
+### 3. Lorebook/World Info (Relational Memory)
+- **Definição:** Chaves ativadas por contexto que trazem dados externos.
+- **Governança:** Taverna pode "forçar" a ativação ou desativação de chaves baseadas no papel (Role).
 
-### D. Scene State (Taverna)
-- **New Construct**: A key-value store within `scene_governance.json` under `scenes[group_id].state`.
-- **Observation**: `scene.state_snapshot`.
-- **Update**: `scene.state_update`.
-- **Role**: Stores plot points, current time, location, and global variables that don't fit in characters.
+### 4. Scene Snapshot (Operational State)
+- **Definição:** Uma agregação em tempo real (Timestamp + Group Members + Role Policy).
+- **Uso:** Serve como base para a verificação de "drift" (desvio de estado) entre o que o orquestrador espera e o que o ST reflete.
 
-### E. Memory Policies
-- **Read Policy**: Taverna reads state and WI before building the context.
-- **Write Policy**: Only "verified" results can update the persistent Scene State.
+## Trazabilidade (Turn Tracking)
+Cada turno deve registrar:
+1. `source_context`: Qual parte do chat foi lida.
+2. `active_role`: Qual papel está executando.
+3. `applied_policy`: Qual API/Modelo/Preset foi usado.
+4. `governance_token`: ID de transação para rastreio.

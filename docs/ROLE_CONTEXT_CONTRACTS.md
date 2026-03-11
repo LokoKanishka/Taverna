@@ -1,40 +1,62 @@
-# Role Context Contracts
+# Role Context Contracts (Phase 11A)
 
-This document defines how context is assembled for each role during execution.
+Este contrato define qué datos alimentan el contexto de ejecución para cada rol y cómo se priorizan para evitar ruido y desbordamiento de tokens.
 
-## 1. Context Assembly Priorities
+## Matriz de Visibilidad por Rol
 
-| Role | Priority 1 | Priority 2 | Priority 3 | Exclusions |
-| :--- | :--- | :--- | :--- | :--- |
-| **master** | Scene State | Lorebook (Global) | Last 50 messages | Character quirks |
-| **character**| Char Personality| Scene State | Last 30 messages | Other char profiles|
-| **player** | Chat History | Scene State | - | Hidden system info |
-| **narrator** | Scene State | High-level Lore | Last 10 messages | Internal NPC logic|
-| **system** | Metadata | Error Logs | - | Everything else |
+| Dato / Rol | Master | Player | Character | Narrator | System |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Chat History** | Full | Recent | Partial | Summary | None |
+| **Character Card**| Yes | Yes | Yes | No | No |
+| **Lorebook** | Full | Auto | Filtered | Relevant | No |
+| **Scene State** | Yes | No | No | Yes | No |
+| **System Logs** | Yes | No | No | No | Yes |
 
-## 2. Assembly Rules
+## Definiciones de Contrato
 
-### Context Budget
-- Fixed at **8192 tokens** (target) for general roles.
-- **master** has priority for Scene State and high-level plot.
-- **character** has priority for Personality and Scenario.
+### 1. Rol: MASTER (Orquestador Supremo)
+- **Contexto:** Visibilidad total del estado de ST y del wrapper.
+- **Prioridad:** P0 (Ininterrumpido).
+- **Budget:** Ilimitado (dentro de límites de hardware).
+- **Exclusiones:** Ninguna.
 
-### Compaction Rules
-1. **Chat Pruning**: If budget exceeded, remove middle messages, keep 5 oldest and 20 newest.
-2. **Lore Pruning**: If multiple lore entries trigger, keep top 5 based on priority value.
-3. **State Flattening**: All key-value pairs in `Scene State` are injected as a summary block.
+### 2. Rol: CHARACTER (Identidad en escena)
+- **Contexto:** Ficha de personaje + Lorebook propio + Últimos N mensajes.
+- **Prioridad:** P1 (Identidad sobre comandos).
+- **Budget:** 2000-4000 tokens (Sugerido).
+- **Exclusiones:** Datos técnicos de otros personajes, configuraciones globales de ST.
 
-## 3. Memory Writing Policies
+### 3. Rol: NARRATOR (World Building)
+- **Contexto:** Snapshot de escena + World Info relevante + Resumen de los últimos 2 turnos.
+- **Prioridad:** P2 (Coherencia ambiental).
+- **Budget:** 3000 tokens.
+- **Exclusiones:** Diálogos internos de personajes (a menos que sean públicos).
 
-| Role | Writing Capacity | Target | Verification |
-| :--- | :--- | :--- | :--- |
-| **master** | High | Scene State | Mandatory `state_diff` |
-| **character**| Low | Lorebook (Personal)| - |
-| **system** | Full | Metadata / States | Strict |
+## Reglas de Composición (Prompt Engineering Policy)
 
-## 4. Verification Contract (`context.verify_inputs`)
-Before execution, Taverna must verify:
-- Presence of mandatory character JSON.
-- Accessibility of `scene_governance.json`.
-- Recent chat tail availability.
-- Fingerprint generation for the compiled context.
+1. **Prioridad de Inserción:**
+   - 1ero: `System Prompt` (Cerrado por Taverna)
+   - 2do: `Scene State` (Contexto de la situación)
+   - 3ero: `Character Identity`
+   - 4to: `Lorebook/Memory`
+   - 5to: `Chat History` (Cola corta)
+
+2. **Exclusiones de Seguridad:**
+   - Ningún rol (excepto Master/System) puede ver los tokens de validación internos (`antigravity_token`).
+   - Los roles no pueden acceder a credenciales de API o configuraciones de red de ST.
+
+3. **Política de Escritura (Memory Persistence):**
+   - **Persistent:** Solo puede ser modificado por `characterUpdateFields` o `lorebookUpsert` con verificación P0.
+   - **Ephemeral:** El `Scene State` se recalcula en cada ciclo de pensamiento.
+
+## Trazabilidad de Fuentes
+Cada salida del orquestador debe venir acompañada de un meta-bloque:
+```json
+{
+  "context_composition": {
+    "role": "character",
+    "sources": ["char_card:Lucy.png", "chat_tail:5", "lorebook_active:true"],
+    "token_budget_usage": "0.35"
+  }
+}
+```
