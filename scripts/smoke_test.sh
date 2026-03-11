@@ -5,7 +5,7 @@
 
 set -e
 
-ST_URL="${1:-http://localhost:8000}"
+ST_URL="${1:-http://127.0.0.1:8123}"
 ENDPOINT="$ST_URL/api/plugins/st-orchestrator"
 
 echo "Running Smoke Test against $ST_URL"
