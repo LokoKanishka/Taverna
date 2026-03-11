@@ -3,3 +3,4 @@ orchestrator/backend/dist/
 test-runtime/
 *.log
 wrapper/*.log
+config/persistent_memory.json
