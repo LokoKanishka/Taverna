@@ -1,0 +1,26 @@
+[
+  {
+    "fault": "Runtime Down",
+    "behavior": "Detection via /probe",
+    "recovery": "Automatic alert/retry block",
+    "status": "VERIFIED"
+  },
+  {
+    "fault": "Oversized Write",
+    "behavior": "Guardrail rejection",
+    "recovery": "Clean error, no disk pollution",
+    "status": "VERIFIED"
+  },
+  {
+    "fault": "Invalid Model",
+    "behavior": "Verification failure",
+    "recovery": "Rollback attempted",
+    "status": "VERIFIED"
+  },
+  {
+    "fault": "Missing Role",
+    "behavior": "Ambiguity warning",
+    "recovery": "Graceful degradation",
+    "status": "VERIFIED"
+  }
+]
