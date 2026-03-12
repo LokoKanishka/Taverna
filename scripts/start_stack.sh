@@ -18,4 +18,4 @@ fi
 
 echo "Starting SillyTavern wrapper from $ST_PATH..."
 cd "$ST_PATH"
-npm start
+BROWSER=true npm start
