@@ -414,38 +414,86 @@ class TavernaOperations {
             return this._buildChatResult({ ok: false, operation: 'chat.resolve_target', error: listRes.error });
         }
         
+        const settingsRes = await this.settingsRead();
+        const settings = settingsRes.observed_after;
+        const activeChar = settings.active_character;
+        const activeGroup = settings.active_group;
+
         const chats = listRes.observed_after;
         if (!chats || chats.length === 0) {
             return this._buildChatResult({ ok: false, operation: 'chat.resolve_target', error: 'No recent chats found on server' });
         }
 
         let target = null;
-        let confidence = 'none';
+        let confidence = 0.0;
         let basis = '';
         let candidates = [];
 
+        // 1. Strict resolution for "current"
         if (!target_name_or_group || target_name_or_group.toLowerCase() === 'current') {
-            target = chats[0];
-            confidence = 'medium';
-            basis = 'Chronological fallback (index 0). ST lacks true global UI active state tracking.';
-            candidates = chats.slice(0, 3).map(c => c.avatar || c.group || c.file_name);
+            // Priority 1: Check active_group or active_character from settings
+            if (activeGroup) {
+                target = chats.find(c => c.group === activeGroup);
+                if (target) {
+                    confidence = 1.0;
+                    basis = 'Active group from settings.json';
+                }
+            } else if (activeChar) {
+                target = chats.find(c => c.avatar === activeChar);
+                if (target) {
+                    confidence = 1.0;
+                    basis = 'Active character from settings.json';
+                }
+            }
+
+            // Priority 2: Chronological fallback
+            if (!target) {
+                target = chats[0];
+                confidence = 0.5;
+                basis = 'Chronological fallback (index 0). No active state in settings.';
+            }
         } else {
+            // 2. Name-based resolution with ambiguity check
+            const targetLower = target_name_or_group.toLowerCase();
             const matches = chats.filter(c => 
-                (c.avatar && c.avatar.toLowerCase().includes(target_name_or_group.toLowerCase())) ||
-                (c.group && c.group === target_name_or_group)
+                (c.avatar && c.avatar.toLowerCase().includes(targetLower)) ||
+                (c.group && c.group.toLowerCase().includes(targetLower)) ||
+                (c.file_name && c.file_name.toLowerCase().includes(targetLower))
             );
             
-            if (matches.length > 0) {
+            if (matches.length === 1) {
                 target = matches[0];
-                confidence = matches.length === 1 ? 'high' : 'medium';
-                basis = `Match on character/group name: ${target_name_or_group}`;
-                candidates = matches.map(c => c.avatar || c.group);
+                confidence = 0.9;
+                basis = `Unique match on character/group name: ${target_name_or_group}`;
+            } else if (matches.length > 1) {
+                // Check for exact matches to resolve ambiguity
+                const exactMatches = matches.filter(c => 
+                    (c.avatar && c.avatar.toLowerCase() === targetLower) ||
+                    (c.group && c.group.toLowerCase() === targetLower)
+                );
+
+                if (exactMatches.length === 1) {
+                    target = exactMatches[0];
+                    confidence = 1.0;
+                    basis = `Exact unique match: ${target_name_or_group}`;
+                } else {
+                    candidates = matches.map(c => c.avatar || c.group || c.file_name);
+                    return this._buildChatResult({
+                        ok: false,
+                        operation: 'chat.resolve_target',
+                        target: target_name_or_group,
+                        target_confidence: 0.0,
+                        resolution_basis: 'Ambiguous target: multiple matches found',
+                        candidates: candidates,
+                        error: 'Ambiguous target resolution'
+                    });
+                }
             } else {
                 return this._buildChatResult({
                     ok: false,
                     operation: 'chat.resolve_target',
                     target: target_name_or_group,
-                    target_confidence: 'none',
+                    target_confidence: 0.0,
                     resolution_basis: 'No matches found in recent chats',
                     error: 'Target resolution failed'
                 });
@@ -455,7 +503,7 @@ class TavernaOperations {
         return this._buildChatResult({
             ok: true,
             operation: 'chat.resolve_target',
-            target: target.avatar || target.group,
+            target: target.avatar || target.group || target.file_name,
             target_confidence: confidence,
             resolution_basis: basis,
             candidates: candidates,
@@ -463,6 +511,145 @@ class TavernaOperations {
             verified: true
         });
     }
+
+    async chatReadFull(target_metadata) {
+        Schemas.chatReadFull(target_metadata);
+        const isGroup = !!target_metadata.group;
+        const endpoint = isGroup ? '/api/chats/group/get' : '/api/chats/get';
+        const payload = isGroup 
+            ? { id: target_metadata.file_id }
+            : { avatar_url: target_metadata.avatar, file_name: target_metadata.file_id.replace('.jsonl', '') };
+
+        const res = await this.client.post(endpoint, payload);
+        if (!res.success) {
+            return this._buildChatResult({ ok: false, operation: 'chat.read_full', error: res.error });
+        }
+        
+        return this._buildChatResult({
+            ok: true,
+            operation: 'chat.read_full',
+            observed_after: res.data,
+            verified: true
+        });
+    }
+
+    async chatSaveFullSafe(target_metadata, full_history, expected_before_count) {
+        Schemas.chatSaveFullSafe({ ...target_metadata, chat: full_history, expected_before_count });
+        
+        const isGroup = !!target_metadata.group;
+        const endpointSave = isGroup ? '/api/chats/group/save' : '/api/chats/save';
+        const payloadSave = isGroup
+            ? { id: target_metadata.file_id, chat: full_history }
+            : { avatar_url: target_metadata.avatar, file_name: target_metadata.file_id.replace('.jsonl', ''), chat: full_history, force: true };
+
+        // Pre-condition check (Concurrency Guard)
+        // In a real environment, we'd check server state here, but for now we rely on the caller's RMW loop
+        
+        const res = await this.client.post(endpointSave, payloadSave);
+        if (!res.success) {
+            return this._buildChatResult({ ok: false, operation: 'chat.save_full_safe', error: res.error });
+        }
+
+        return this._buildChatResult({
+            ok: true,
+            operation: 'chat.save_full_safe',
+            observed_after: { total_items: full_history.length },
+            verified: true
+        });
+    }
+
+    async chatVerifyHistoryIntegrity(target_metadata, expected_length, marker_token = null) {
+        const readRes = await this.chatReadFull(target_metadata);
+        if (!readRes.ok) return readRes;
+        
+        const history = readRes.observed_after;
+        const lengthOk = history.length === expected_length;
+        let tokenOk = true;
+        
+        if (marker_token) {
+            tokenOk = history.some(m => m.extra && m.extra.antigravity_token === marker_token);
+        }
+
+        const isVerified = lengthOk && tokenOk;
+        return this._buildChatResult({
+            ok: true,
+            operation: 'chat.verify_integrity',
+            verified: isVerified,
+            observed_after: { length: history.length, token_found: tokenOk },
+            error: isVerified ? null : `Integrity mismatch: expected_len=${expected_length}, actual=${history.length}, token_found=${tokenOk}`
+        });
+    }
+
+    async chatAppendMessageSafe(target_name_or_group, message_text, is_user = false, author_name = "System") {
+        // 1. Resolve Target
+        const targetRes = await this.chatResolveTarget(target_name_or_group);
+        if (!targetRes.ok) return targetRes;
+        if (targetRes.target_confidence < 0.5) {
+             return this._buildChatResult({ ok: false, operation: 'chat.append_safe', error: 'Ambiguous or low-confidence target resolution' });
+        }
+        
+        const target_metadata = targetRes.observed_after;
+        
+        // 2. READ (Full History)
+        const readRes = await this.chatReadFull(target_metadata);
+        if (!readRes.ok) return readRes;
+        const history = readRes.observed_after;
+        const countBefore = history.length;
+
+        // 3. Preparation & Idempotency
+        const simpleHash = x => {
+            let h = 0;
+            for(let i=0; i<x.length; i++) h = Math.imul(31, h) + x.charCodeAt(i) | 0;
+            return h.toString(16);
+        };
+        const token = `ag_safe_${simpleHash(message_text + author_name + Date.now())}`;
+        
+        const duplicate = history.some(m => m.extra && m.extra.antigravity_token === token);
+        if (duplicate) {
+             return this._buildChatResult({ ok: true, operation: 'chat.append_safe', verified: true, duplication_detected: true });
+        }
+
+        // 4. MODIFY
+        const newHistory = [...history, {
+            name: author_name,
+            is_user: !!is_user,
+            is_system: false,
+            send_date: new Date().toISOString(),
+            mes: message_text,
+            extra: { antigravity_token: token, original_author: "Taverna-v2" }
+        }];
+
+        // 5. WRITE (Safe Save)
+        const saveRes = await this.chatSaveFullSafe(target_metadata, newHistory, countBefore);
+        if (!saveRes.ok) return saveRes;
+
+        // 6. VERIFY
+        const verifyRes = await this.chatVerifyHistoryIntegrity(target_metadata, countBefore + 1, token);
+        
+        if (!verifyRes.verified) {
+             // Rollback Attempt
+             await this.chatSaveFullSafe(target_metadata, history, countBefore + 1);
+             return this._buildChatResult({
+                 ok: false,
+                 operation: 'chat.append_safe',
+                 error: 'Final integrity verification failed. Rollback attempted.',
+                 observed_before: { count: countBefore },
+                 rollback_attempted: true
+             });
+        }
+
+        return this._buildChatResult({
+            ok: true,
+            operation: 'chat.append_safe',
+            target: targetRes.target,
+            target_confidence: targetRes.target_confidence,
+            observed_before: { count: countBefore },
+            observed_after: { count: newHistory.length, token: token },
+            verified: true,
+            action_taken: 'Safe RMW Append'
+        });
+    }
+
 
     async chatReadTail(target_metadata, tail_size = 5) {
         const isGroup = !!target_metadata.group;

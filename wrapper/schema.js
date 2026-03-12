@@ -36,8 +36,19 @@ const Schemas = {
         return { avatar: input.avatar, ch_name: input.ch_name, ...updates };
     },
 
-    chatCurrent: (input) => validateSchema(input, ['character_name']),
+    chatReadFull: (input) => validateSchema(input, ['file_id']), // avatar/group handled by presence
     
+    chatSaveFullSafe: (input) => {
+        validateSchema(input, ['file_id', 'chat', 'expected_before_count']);
+        if (!Array.isArray(input.chat)) throw new Error('chat must be an array of messages');
+        return input;
+    },
+
+    chatAppendMessageSafe: (input) => {
+        validateSchema(input, ['target_name_or_group', 'message_text']);
+        return input;
+    },
+
     chatInject: (input) => {
         validateSchema(input, ['character_name', 'message_text', 'is_user']);
         return input;
