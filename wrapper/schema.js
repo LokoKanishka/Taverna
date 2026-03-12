@@ -81,7 +81,49 @@ const Schemas = {
         return updates;
     },
 
-    presetSetActive: (input) => validateSchema(input, ['apiId', 'preset_name'])
+    presetSetActive: (input) => validateSchema(input, ['apiId', 'preset_name']),
+
+    characterDeleteBulk: (input) => {
+        // Enforce safety defaults
+        const defaults = {
+            delete_chats: true,
+            dry_run: true,
+            confirm: false,
+            targets: []
+        };
+        const data = { ...defaults, ...input };
+        
+        if (!Array.isArray(data.targets)) {
+            throw new Error('targets must be an array of strings (names or avatar filenames)');
+        }
+        
+        return data;
+    },
+
+    groupDelete: (input) => {
+        validateSchema(input, ['id']);
+        return {
+            id: String(input.id),
+            dry_run: input.dry_run !== false,
+            confirm: !!input.confirm
+        };
+    },
+
+    lorebookUpdate: (input) => {
+        validateSchema(input, ['name', 'data']);
+        if (!input.data.entries) throw new Error('Lorebook data must contain entries');
+        return input;
+    },
+
+    chatDelete: (input) => {
+        validateSchema(input, ['avatar_url', 'file_name']);
+        return {
+            avatar_url: input.avatar_url,
+            file_name: input.file_name,
+            dry_run: input.dry_run !== false,
+            confirm: !!input.confirm
+        };
+    }
 };
 
 module.exports = { Schemas, validateSchema };
