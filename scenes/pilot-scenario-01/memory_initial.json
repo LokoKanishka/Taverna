@@ -1,0 +1,11 @@
+{
+  "elara-shadow": {
+    "background": "Former thief turned arcane researcher.",
+    "current_inventory": ["Lockpicks", "Dim-lit lantern", "Old map excerpt"],
+    "known_facts": ["The Seal was hidden by the Order of the Silent Sun."]
+  },
+  "world": {
+    "archive_layout": "A labyrinth of stone shelves and whispering scrolls.",
+    "security_logic": "Sensitive to light and sudden vibrations."
+  }
+}

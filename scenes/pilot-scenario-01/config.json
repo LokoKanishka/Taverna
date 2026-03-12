@@ -1,0 +1,24 @@
+{
+  "scene_id": "pilot-01",
+  "name": "The Crimson Archive - Extraction",
+  "roles": {
+    "master": {
+      "id": "taverna-master",
+      "model": "gpt-4-turbo",
+      "preset": "storyteller-v1",
+      "policy": "enforce-continuity"
+    },
+    "character": {
+      "id": "elara-shadow",
+      "model": "claude-3-sonnet",
+      "preset": "roleplay-v1",
+      "policy": "character-integrity"
+    },
+    "narrator": {
+      "id": "world-voice",
+      "model": "gpt-3.5-turbo",
+      "preset": "descriptive-v1",
+      "policy": "sensory-rich"
+    }
+  }
+}

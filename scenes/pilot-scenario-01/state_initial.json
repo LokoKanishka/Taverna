@@ -1,0 +1,11 @@
+{
+  "location": "The Crimson Archive, Deep Vaults",
+  "time": "Midnight",
+  "active_participants": ["elara-shadow"],
+  "scene_events": [],
+  "current_objective": "Locate the Seal of Silence without triggering the arcane alarm.",
+  "flags": {
+    "alarm_active": false,
+    "seal_found": false
+  }
+}

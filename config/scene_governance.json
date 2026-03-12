@@ -14,9 +14,10 @@
                 "active_threats": [
                     "Arasaka Patrol"
                 ],
-                "location": "Underground Clinic",
+                "location": "Pilot Hangar",
                 "security_level": "High",
-                "objective": "Retrieve data chip"
+                "objective": "Retrieve data chip",
+                "status": "Engine Failure"
             }
         }
     },
