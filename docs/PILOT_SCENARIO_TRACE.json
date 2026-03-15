@@ -1,0 +1,39 @@
+[
+  {
+    "turn": 1,
+    "role": "master",
+    "state": {
+      "current_location": "Night City - Sector 4",
+      "time_of_day": "Midnight",
+      "plot_tension": 0.8,
+      "active_threats": [
+        "Arasaka Patrol"
+      ],
+      "location": "Pilot Hangar",
+      "security_level": "High",
+      "objective": "Retrieve data chip",
+      "status": "Pre-flight check"
+    }
+  },
+  {
+    "turn": 2,
+    "role": "character",
+    "action": "Execute",
+    "memory_write": true
+  },
+  {
+    "turn": 3,
+    "role": "narrator",
+    "action": "Execute"
+  },
+  {
+    "turn": 4,
+    "role": "system",
+    "mutation": "Model switch & Status Change"
+  },
+  {
+    "turn": 5,
+    "role": "master",
+    "state": "Emergency"
+  }
+]

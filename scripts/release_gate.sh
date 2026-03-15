@@ -2,9 +2,9 @@
 # release_gate.sh - Taverna-v2 Final Release Gate
 set -e
 
-LOG_DIR="/tmp/taverna_release"
-mkdir -p "$LOG_DIR"
-FINAL_REPORT="docs/RELEASE_GATE.md"
+mkdir -p logs
+LOG_DIR="logs"
+FINAL_REPORT="logs/release_gate_latest.md"
 
 function log_section() {
     echo -e "\n>>> $1" | tee -a "$LOG_DIR/release.log"

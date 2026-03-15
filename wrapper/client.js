@@ -16,16 +16,17 @@ class SillyTavernClient {
      */
     async _request(method, endpoint, payload = null) {
         const url = `${this.baseUrl}${endpoint}`;
+        const isMultipart = typeof FormData !== 'undefined' && payload instanceof FormData;
         const options = {
             method,
             headers: {
                 'Accept': 'application/json',
-                'Content-Type': 'application/json'
+                ...(!isMultipart && { 'Content-Type': 'application/json' })
             }
         };
 
         if (payload) {
-            options.body = JSON.stringify(payload);
+            options.body = isMultipart ? payload : JSON.stringify(payload);
         }
 
         const controller = new AbortController();

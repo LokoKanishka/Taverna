@@ -4,3 +4,5 @@ test-runtime/
 *.log
 wrapper/*.log
 config/persistent_memory.json
+logs/
+logs/release_gate_latest.md

@@ -16,7 +16,8 @@
                 ],
                 "location": "Underground Clinic",
                 "security_level": "High",
-                "objective": "Retrieve data chip"
+                "objective": "Retrieve data chip",
+                "status": "Engine Failure"
             }
         }
     },

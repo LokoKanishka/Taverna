@@ -28,7 +28,7 @@ if ss -ltnp | grep -q ':8123'; then
     log_block "RUNTIME" "PASS" "SillyTavern listening on 8123"
 else
     echo "Runtime down, attempting startup..."
-    (cd /home/lucy-ubuntu/Archivo_proyectos/Taverna/Taverna-legacy/SillyTavern && nohup node server.js > "$LOG_DIR/st_runtime.log" 2>&1 & echo $! > "$LOG_DIR/st_runtime.pid")
+    (cd /home/lucy-ubuntu/Archivo_proyectos/Taverna/Taverna-legacy/SillyTavern && BROWSER=true nohup node server.js > "$LOG_DIR/st_runtime.log" 2>&1 & echo $! > "$LOG_DIR/st_runtime.pid")
     sleep 5
     if ss -ltnp | grep -q ':8123'; then
         log_block "RUNTIME" "PASS" "SillyTavern started successfully (PID $(cat $LOG_DIR/st_runtime.pid))"
