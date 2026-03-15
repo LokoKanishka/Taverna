@@ -36,6 +36,15 @@ const Schemas = {
         return { avatar: input.avatar, ch_name: input.ch_name, ...updates };
     },
 
+    characterImport: (input) => {
+        validateSchema(input, ['file_path', 'file_type']);
+        const allowedTypes = ['png', 'json', 'charx', 'yaml', 'yml', 'byaf'];
+        if (!allowedTypes.includes(input.file_type)) {
+            throw new Error(`Invalid file_type: ${input.file_type}. Allowed: ${allowedTypes.join(', ')}`);
+        }
+        return input;
+    },
+
     chatReadFull: (input) => validateSchema(input, ['file_id']), // avatar/group handled by presence
     
     chatSaveFullSafe: (input) => {
@@ -114,7 +123,6 @@ const Schemas = {
         if (!input.data.entries) throw new Error('Lorebook data must contain entries');
         return input;
     },
-
     chatDelete: (input) => {
         validateSchema(input, ['avatar_url', 'file_name']);
         return {
@@ -123,7 +131,13 @@ const Schemas = {
             dry_run: input.dry_run !== false,
             confirm: !!input.confirm
         };
-    }
+    },
+
+    audioSetProvider: (input) => validateSchema(input, ['provider_id']),
+
+    audioSetVoiceMapping: (input) => validateSchema(input, ['character_id', 'voice_id', 'provider_id']),
+
+    audioSTTSetMode: (input) => validateSchema(input, ['enabled', 'provider', 'mode'])
 };
 
 module.exports = { Schemas, validateSchema };

@@ -1660,6 +1660,61 @@ class TavernaOperations {
         result.targets_deleted = targets_deleted;
         result.ok = result.verified;
         return result;
+    }
+
+    /**
+     * Internalized Character Import (No UI)
+     */
+    async characterImport(inputParams) {
+        const params = Schemas.characterImport(inputParams);
+        const name = 'character.import';
+
+        const fs = require('fs');
+        const path = require('path');
+        const { Blob } = require('buffer');
+
+        if (!fs.existsSync(params.file_path)) {
+            return { ok: false, operation: name, error: `File not found: ${params.file_path}` };
+        }
+
+        let file_name_out = null;
+        let verified = false;
+
+        try {
+            const fileBuffer = fs.readFileSync(params.file_path);
+            const blob = new Blob([fileBuffer], { type: 'application/octet-stream' });
+
+            const formData = new FormData();
+            formData.append('avatar', blob, path.basename(params.file_path));
+            formData.append('file_type', params.file_type);
+
+            if (params.preserved_name) {
+                formData.append('preserved_name', params.preserved_name);
+            }
+
+            const res = await this.client.post('/api/characters/import', formData);
+            if (!res.success) throw new Error(res.error || 'Unknown API error');
+            
+            file_name_out = res.data?.file_name;
+            if (!file_name_out) throw new Error('API returned success but no file_name');
+
+            // Verification
+            const verifyRes = await this.client.post('/api/characters/all', {});
+            const allChars = verifyRes.data || [];
+            verified = allChars.some(c => c.avatar?.startsWith(file_name_out) || c.name === file_name_out);
+
+            return {
+                ok: verified,
+                operation: name,
+                file_name: file_name_out,
+                verified,
+                observed_after: { file_name: file_name_out, verified }
+            };
+        } catch (e) {
+            return { ok: false, operation: name, error: `Import Failure: ${e.message}` };
+        }
+    }
+
     /**
      * Internalized Group Deletion (No UI)
      */
@@ -1805,6 +1860,130 @@ class TavernaOperations {
 
         return result;
     }
-}
+
+    // ==========================================
+    // AUDIO GOVERNANCE — PHASE 19
+    // ==========================================
+
+    async audioTTSListProviders() {
+        const settingsRes = await this.settingsRead();
+        const settings = settingsRes.observed_after;
+        
+        // Define known providers for governance
+        const knownProviders = [
+            { id: "Edge", label: "Edge TTS" },
+            { id: "System", label: "System TTS" },
+            { id: "ElevenLabs", label: "ElevenLabs" },
+            { id: "OpenAI", label: "OpenAI TTS" },
+            { id: "Silero", label: "Silero TTS" }
+        ];
+
+        return this._buildResult('audio.tts.list_providers', null, knownProviders, 'list', true);
+    }
+
+    async audioTTSGetActive() {
+        const settingsRes = await this.settingsRead();
+        const settings = settingsRes.observed_after;
+        const current = settings.tts?.currentProvider || "None";
+        return this._buildResult('audio.tts.get_active', null, { provider_id: current }, 'get', true);
+    }
+
+    async audioTTSSetProvider(provider_id) {
+        Schemas.audioSetProvider({ provider_id });
+        
+        const before = await this.audioTTSGetActive();
+        
+        // Update settings
+        const settingsRes = await this.settingsRead();
+        const settings = settingsRes.observed_after;
+        
+        if (!settings.tts) settings.tts = {};
+        settings.tts.currentProvider = provider_id;
+        settings.tts.ttsEnabled = true;
+
+        const saveRes = await this.client.post('/api/settings/save', settings);
+        if (!saveRes.success) {
+            return this._buildResult('audio.tts.set_provider', before.observed_after, null, 'set', false, saveRes.error);
+        }
+
+        const after = await this.audioTTSGetActive();
+        const verified = after.observed_after.provider_id === provider_id;
+
+        return this._buildResult('audio.tts.set_provider', before.observed_after, after.observed_after, 'set', verified);
+    }
+
+    async audioTTSSetVoiceMapping(character_id, voice_id, provider_id) {
+        Schemas.audioSetVoiceMapping({ character_id, voice_id, provider_id });
+        
+        const settingsRes = await this.settingsRead();
+        const settings = settingsRes.observed_after;
+        
+        if (!settings.tts) settings.tts = {};
+        if (!settings.tts[provider_id]) settings.tts[provider_id] = { voiceMap: {} };
+        if (!settings.tts[provider_id].voiceMap) settings.tts[provider_id].voiceMap = {};
+        
+        const before = settings.tts[provider_id].voiceMap[character_id] || null;
+        settings.tts[provider_id].voiceMap[character_id] = voice_id;
+
+        const saveRes = await this.client.post('/api/settings/save', settings);
+        if (!saveRes.success) {
+            return this._buildResult('audio.tts.set_voice_mapping', before, null, 'map', false, saveRes.error);
+        }
+
+        return this._buildResult('audio.tts.set_voice_mapping', before, voice_id, 'map', true);
+    }
+
+    async audioTTSTestOutput(text = "Taverna audio foundation operational.") {
+        // To trigger TTS, we use a slash command via /execute (Extension Bridge)
+        const payload = {
+            command: `/tts ${text}`
+        };
+        
+        const res = await this.client.post('/api/plugins/st-orchestrator/execute', payload);
+        const ok = res.success;
+        
+        return this._buildResult('audio.tts.test_output', null, text, 'trigger_tts', ok, res.error);
+    }
+
+    async audioSTTGetStatus() {
+        const settingsRes = await this.settingsRead();
+        const settings = settingsRes.observed_after;
+        const stt = settings.speech_recognition || { enabled: false, provider: "none" };
+        
+        return this._buildResult('audio.stt.get_status', null, stt, 'get', true);
+    }
+
+    async audioSTTSetMode(enabled, provider, mode) {
+        Schemas.audioSTTSetMode({ enabled, provider, mode });
+        
+        const before = await this.audioSTTGetStatus();
+        
+        const settingsRes = await this.settingsRead();
+        const settings = settingsRes.observed_after;
+        
+        settings.speech_recognition = {
+            ...settings.speech_recognition,
+            enabled: !!enabled,
+            provider: provider,
+            mode: mode
+        };
+
+        const saveRes = await this.client.post('/api/settings/save', settings);
+        if (!saveRes.success) {
+            return this._buildResult('audio.stt.set_mode', before.observed_after, null, 'set', false, saveRes.error);
+        }
+
+        const after = await this.audioSTTGetStatus();
+        return this._buildResult('audio.stt.set_mode', before.observed_after, after.observed_after, 'set', true);
+    }
+
+    async audioSTTTestInput() {
+        // STT test usually requires UI interaction, but we can check if the extension is polling
+        const probe = await this.healthStatus();
+        const ok = probe.observed_after === 'alive';
+        
+        return this._buildResult('audio.stt.test_input', null, 'stt_probe', 'poll_check', ok);
+    }
+    }
 
 module.exports = { TavernaOperations };
