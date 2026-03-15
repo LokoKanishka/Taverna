@@ -9,6 +9,11 @@ const path = require('path');
 class TavernaOperations {
     constructor(client) {
         this.client = client;
+        this.policy = {
+            mouse_fallback_default: false,
+            internal_api_first: true,
+            emergency_ui_mode: process.env.TAVERNA_ALLOW_EMERGENCY_UI === '1'
+        };
     }
 
     /**
@@ -30,6 +35,9 @@ class TavernaOperations {
             action_taken: action,
             observed_after: after,
             verified: isOk && !error,
+            verification_ok: isOk && !error, // duplicate with verified for schema compatibility or policy enforcement
+            used_internal_path: true, // Default true for Taverna internal operations
+            used_emergency_ui: false, // Default false
             rollback_plan: rollbackPlan,
             rollback_attempted: rollbackAttempted,
             rollback_ok: rollbackOk,
@@ -54,6 +62,8 @@ class TavernaOperations {
             action_taken: params.action_taken || null,
             observed_after: params.observed_after || null,
             verified: params.verified || false,
+            used_internal_path: true,
+            used_emergency_ui: false,
             duplication_detected: params.duplication_detected || false,
             rollback_supported: params.rollback_supported || false,
             rollback_attempted: params.rollback_attempted || false,
@@ -73,6 +83,8 @@ class TavernaOperations {
             action_taken: params.action_taken || null,
             observed_after: params.observed_after || null,
             verified: params.verified || false,
+            used_internal_path: true,
+            used_emergency_ui: false,
             rollback_supported: params.rollback_supported || false,
             rollback_result: params.rollback_result || null,
         };
@@ -86,6 +98,8 @@ class TavernaOperations {
             ok: params.ok,
             operation: params.operation,
             role: params.role || null,
+            used_internal_path: true,
+            used_emergency_ui: false,
             target_scene: params.target_scene || null,
             context_sources: params.context_sources || {},
             context_compiled: params.context_compiled || null,
@@ -107,6 +121,8 @@ class TavernaOperations {
             operation: params.operation,
             scope: params.scope || null,
             memory_key: params.memory_key || null,
+            used_internal_path: true,
+            used_emergency_ui: false,
             observed_before: params.observed_before || null,
             action_taken: params.action_taken || null,
             observed_after: params.observed_after || null,
@@ -116,6 +132,67 @@ class TavernaOperations {
             rollback_result: params.rollback_result || null,
             error: params.error || null
         };
+    }
+
+    /**
+     * Policy Enforcement Wrapper (Quarantine Framework)
+     * Forces fallback routes to be placed behind emergency_ui_mode flag.
+     */
+    async _executeWithPolicy(operationName, internalActionFn, fallbackUiFn = null) {
+        try {
+            // 1. Try internal path first
+            if (this.policy.internal_api_first && internalActionFn) {
+                const result = await internalActionFn();
+                if (result && result.ok !== false) {
+                    return {
+                        ...result,
+                        used_internal_path: true,
+                        used_emergency_ui: false
+                    };
+                }
+            }
+
+            // 2. Fallback to Emergency UI if enabled
+            if (fallbackUiFn) {
+                if (this.policy.emergency_ui_mode) {
+                    console.warn(`[POLICY] EMERGENCY_UI_PATH_USED in ${operationName}`);
+                    const result = await fallbackUiFn();
+                    return {
+                        ...result,
+                        used_internal_path: false,
+                        used_emergency_ui: true
+                    };
+                } else {
+                    console.error(`[POLICY] POLICY_VIOLATION_MOUSE_FALLBACK in ${operationName}`);
+                    return {
+                        ok: false,
+                        operation: operationName,
+                        verified: false,
+                        used_internal_path: false,
+                        used_emergency_ui: false,
+                        error: 'unsupported_internal_path',
+                        reason: 'Emergency UI disabled and internal path failed/missing'
+                    };
+                }
+            }
+
+            return {
+                ok: false,
+                operation: operationName,
+                verified: false,
+                used_internal_path: true, // we tried internal but it failed
+                used_emergency_ui: false,
+                error: 'operation_failed_internally'
+            };
+
+        } catch (err) {
+            return {
+                ok: false,
+                operation: operationName,
+                verified: false,
+                error: err.message
+            };
+        }
     }
 
     _loadMemory() {
