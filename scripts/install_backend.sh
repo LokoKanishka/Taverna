@@ -16,6 +16,7 @@ echo "Installing Backend to $TARGET_DIR..."
 
 mkdir -p "$TARGET_DIR/src"
 cp "$BASE_DIR/orchestrator/backend/src/index.ts" "$TARGET_DIR/src/"
+cp "$BASE_DIR/orchestrator/backend/src/state.ts" "$TARGET_DIR/src/"
 cp "$BASE_DIR/orchestrator/backend/package.json" "$TARGET_DIR/"
 cp "$BASE_DIR/orchestrator/backend/tsconfig.json" "$TARGET_DIR/"
 cp "$BASE_DIR/orchestrator/backend/webpack.config.js" "$TARGET_DIR/"

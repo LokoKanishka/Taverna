@@ -14,7 +14,7 @@ RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BRIDGE_API_URL/probe")
 HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
 
-if [ "$HTTP_STATUS" -ne 200 ]; then
+if [ "$HTTP_STATUS" -ne 200 ] && [ "$HTTP_STATUS" -ne 204 ]; then
     echo "1. Backend Reachable: broken (HTTP $HTTP_STATUS)"
     echo "2. Frontend Loaded   : unknown"
     echo "3. Poll Loop Healthy : unknown"
