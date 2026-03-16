@@ -1746,50 +1746,51 @@ class TavernaOperations {
         const params = Schemas.characterImport(inputParams);
         const name = 'character.import';
 
-        const fs = require('fs');
-        const path = require('path');
-        const { Blob } = require('buffer');
+        return this._executeWithPolicy(name, async () => {
+            const fs = require('fs');
+            const path = require('path');
+            const { Blob } = require('buffer');
 
-        if (!fs.existsSync(params.file_path)) {
-            return { ok: false, operation: name, error: `File not found: ${params.file_path}` };
-        }
-
-        let file_name_out = null;
-        let verified = false;
-
-        try {
-            const fileBuffer = fs.readFileSync(params.file_path);
-            const blob = new Blob([fileBuffer], { type: 'application/octet-stream' });
-
-            const formData = new FormData();
-            formData.append('avatar', blob, path.basename(params.file_path));
-            formData.append('file_type', params.file_type);
-
-            if (params.preserved_name) {
-                formData.append('preserved_name', params.preserved_name);
+            if (!fs.existsSync(params.file_path)) {
+                return { ok: false, operation: name, error: `File not found: ${params.file_path}` };
             }
 
-            const res = await this.client.post('/api/characters/import', formData);
-            if (!res.success) throw new Error(res.error || 'Unknown API error');
-            
-            file_name_out = res.data?.file_name;
-            if (!file_name_out) throw new Error('API returned success but no file_name');
+            let file_name_out = null;
+            let verified = false;
 
-            // Verification
-            const verifyRes = await this.client.post('/api/characters/all', {});
-            const allChars = verifyRes.data || [];
-            verified = allChars.some(c => c.avatar?.startsWith(file_name_out) || c.name === file_name_out);
+            try {
+                const fileBuffer = fs.readFileSync(params.file_path);
+                const blob = new Blob([fileBuffer], { type: 'application/octet-stream' });
 
-            return {
-                ok: verified,
-                operation: name,
-                file_name: file_name_out,
-                verified,
-                observed_after: { file_name: file_name_out, verified }
-            };
-        } catch (e) {
-            return { ok: false, operation: name, error: `Import Failure: ${e.message}` };
-        }
+                const formData = new FormData();
+                formData.append('avatar', blob, path.basename(params.file_path));
+                formData.append('file_type', params.file_type);
+
+                if (params.preserved_name) {
+                    formData.append('preserved_name', params.preserved_name);
+                }
+
+                const res = await this.client.post('/api/characters/import', formData);
+                if (!res.success) throw new Error(res.error || 'Unknown API error');
+                
+                file_name_out = res.data?.file_name;
+                if (!file_name_out) throw new Error('API returned success but no file_name');
+
+                const verifyRes = await this.client.post('/api/characters/all', {});
+                const allChars = verifyRes.data || [];
+                verified = allChars.some(c => c.avatar?.startsWith(file_name_out) || c.name === file_name_out);
+
+                return {
+                    ok: verified,
+                    operation: name,
+                    file_name: file_name_out,
+                    verified,
+                    observed_after: { file_name: file_name_out, verified }
+                };
+            } catch (e) {
+                return { ok: false, operation: name, error: `Import Failure: ${e.message}` };
+            }
+        }, null); // No fallback allowed
     }
 
     /**
