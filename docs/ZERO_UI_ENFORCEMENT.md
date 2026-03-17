@@ -8,7 +8,7 @@ The following operations are **STRICTLY PROHIBITED** from using UI automation (e
 - **Deletions**: Characters, Groups, Chats, Lorebooks.
 - **Persistence Mutations**: lorebook updates, chat history appends/injections, global settings changes.
 - **Target Resolution**: Selecting characters or groups via UI elements.
-- **Character Creation/Import**: Declared UNSUPPORTED_NO_UI_FALLBACK. Do not use browser_subagent.
+- **Character Creation/Import**: UNSUPPORTED_NO_UI_FALLBACK. The internal wrapper exists but is disabled due to Node.js streaming hangs. UI fallback remains strictly forbidden.
 
 ## 2. Governed Internal Channels
 Every sensitive operation must use an authorized internal channel:

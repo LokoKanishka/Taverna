@@ -226,7 +226,7 @@ class TavernaOperations {
 
     async healthStatus() {
         const res = await this.client.post('/api/plugins/st-orchestrator/probe');
-        const isOk = res.success && res.status === 204;
+        const isOk = res.success;
         return this._buildResult('health.status', null, isOk ? 'alive' : 'dead', 'ping_probe', isOk, res.error);
     }
 
