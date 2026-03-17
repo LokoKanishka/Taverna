@@ -11,7 +11,7 @@ This document tracks the internalization status of every SillyTavern surface use
 | **Model** | model.get_active | API (Settings) | [x] | [ ] | Derived from settings. |
 | **Model** | model.set_active | API (Settings) | [x] | [ ] | Updates `api_server_default` and `temp_...`. |
 | **Character** | character.read | API (`/api/characters/all`) | [x] | [ ] | |
-| **Character** | character.create | API (`/api/characters/import`) | [x] | [ ] | UNSUPPORTED_NO_UI_FALLBACK. Wrapper implemented but disabled for safety. |
+| **Character** | character.create | API (`/api/characters/import`) | [x] | [ ] | IMPLEMENTED_BUT_UNSUPPORTED_NO_UI_FALLBACK. Wrapper implemented but disabled for safety. |
 | **Character** | character.update | API (`/api/characters/edit`) | [x] | [ ] | Field-level updates. |
 | **Character** | character.delete | API (`/api/characters/delete`) | [x] | [ ] | `character.delete_bulk` implemented. |
 | **Chat** | chat.resolve | API (Recent/Settings) | [x] | [ ] | `chatResolveTarget` handles "current". |

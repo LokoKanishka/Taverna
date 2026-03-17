@@ -10,7 +10,7 @@ This matrix resolves the contradictions between documentation, codebase, branche
 | **lorebook.update** | IMPLEMENTED | Added in operations.js (L1896). Merged into `main`. |
 | **chat governance** | IMPLEMENTED | Includes `chatResolveTarget`, safe append, and idempotency logic. |
 | **zero-ui enforcement** | DOCUMENTED | `ZERO_UI_ENFORCEMENT.md` is correct and aligns with code. |
-| **character.create/import** | UNSUPPORTED_NO_UI_FALLBACK | Wrapper hangs during multipart fetch. Cannot be closed cleanly without risking Node.js streaming issues. UI fallback is strictly forbidden. |
+| **character.create/import** | IMPLEMENTED_BUT_UNSUPPORTED_NO_UI_FALLBACK | Wrapper hangs during multipart fetch. Cannot be closed cleanly without risking Node.js streaming issues. UI fallback is strictly forbidden. |
 
 ## Branch Status
 All these implementations have been unified into the official base (`main`). The closure process is complete.

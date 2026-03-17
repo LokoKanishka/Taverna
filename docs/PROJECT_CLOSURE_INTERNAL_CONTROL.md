@@ -8,7 +8,7 @@
 ## 2. State of Governance
 The "Titiritero" objective is accomplished. Taverna-v2 manages SillyTavern locally via the REST API integration (`TavernaOperations`) and strict policy guardrails.
 - **Fully Governed:** Deletions (chat, group, character), Updates (settings, characters, lorebooks, chats).
-- **Partially Governed (subject to definitive test):** Character Import/Creation.
+- **Zero-UI Denied (Safety Block):** Character Import/Creation (IMPLEMENTED_BUT_UNSUPPORTED_NO_UI_FALLBACK).
 - **Out of Scope (By Design):** Visual fallback for actions that should be governed natively.
 
 ## 3. The Zero-UI Policy
