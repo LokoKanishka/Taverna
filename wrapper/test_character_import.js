@@ -8,8 +8,8 @@ async function runTest() {
     console.log('--- TEST: CREATE/IMPORT CHARACTER (NO UI) ---');
 
     try {
-        const testFilePath = '/tmp/test_char.png';
-        const fileType = 'png';
+        const testFilePath = '/tmp/test_char.json';
+        const fileType = 'json';
 
         console.log(`\nSTEP 1: Importing character from ${testFilePath}...`);
         
